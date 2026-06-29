@@ -207,7 +207,7 @@ sleep 3
 curl -sf http://127.0.0.1:{API_PORT}/health
 
 cd "$REMOTE_DIR/frontend"
-npm ci
+npm install
 npm run build
 rm -rf "$WEB_DIR"/*
 cp -r dist/* "$WEB_DIR/"
