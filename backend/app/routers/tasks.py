@@ -109,7 +109,12 @@ async def _dispatch_one(
         return None, "员工不存在"
     if not has_twitter_cookie(emp):
         return None, "未绑定 Twitter Cookie"
-    if emp.stage not in (EmployeeStage.active, EmployeeStage.ready, EmployeeStage.training):
+    if emp.stage not in (
+        EmployeeStage.active,
+        EmployeeStage.ready,
+        EmployeeStage.training,
+        EmployeeStage.recruiting,
+    ):
         return None, f"员工状态 {emp.stage.value} 不可派活"
 
     task = WorkTask(
