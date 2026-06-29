@@ -2,75 +2,35 @@
   <div class="recruit-page">
     <div class="page-header">
       <div>
-        <h2>员工管理 · Twitter</h2>
-        <p class="desc">绑定 Cookie 即可上岗干活，支持批量招募与批量派活。</p>
+        <h2>员工管理</h2>
+        <p class="desc">Twitter 数字员工名册，绑定 Cookie 即可派活。</p>
       </div>
-      <div class="platform-tags">
-        <span class="tag active">Twitter / X</span>
-        <span class="tag disabled" title="敬请期待">邮箱</span>
-        <span class="tag disabled" title="敬请期待">其他账号</span>
+      <div class="header-actions">
+        <div class="platform-tags">
+          <span class="tag active">Twitter / X</span>
+          <span class="tag disabled" title="敬请期待">邮箱</span>
+          <span class="tag disabled" title="敬请期待">其他账号</span>
+        </div>
+        <button @click="openRecruitModal('single')">+ 招募员工</button>
       </div>
     </div>
 
-    <div class="tabs">
-      <button :class="{ active: tab === 'single' }" @click="tab = 'single'">单个招募</button>
-      <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量招募</button>
-    </div>
-
-    <!-- 单个招募 -->
-    <div v-if="tab === 'single'" class="card form-card">
-      <form @submit.prevent="submitSingle">
-        <div class="form-row">
-          <label>员工姓名</label>
-          <input v-model="single.display_name" placeholder="如：运营小号A" required />
-        </div>
-        <div class="form-row">
-          <label>Twitter 账号（选填）</label>
-          <input v-model="single.twitter_handle" placeholder="@handle" />
-        </div>
-        <div class="form-row">
-          <label>员工类型</label>
-          <select v-model="single.employee_type">
+    <div class="card list-card">
+      <div class="list-header">
+        <div class="filters">
+          <input v-model="search" placeholder="搜索姓名 / @账号" class="search" />
+          <select v-model="filterType">
+            <option value="">全部类型</option>
             <option v-for="t in employeeTypes" :key="t.id" :value="t.id">{{ t.label }}</option>
           </select>
         </div>
-        <div class="form-row">
-          <label>Twitter Cookie <span class="hint">（原始或 base64，服务端统一转 base64）</span></label>
-          <textarea v-model="single.twitter_cookie" rows="4" placeholder="auth_token=...; ct0=..." required />
+        <div class="list-actions">
+          <button class="secondary" @click="openRecruitModal('batch')">批量招募</button>
+          <button class="secondary" @click="load">刷新</button>
         </div>
-        <label class="checkbox">
-          <input type="checkbox" v-model="single.auto_onboard" checked disabled />
-          招募后自动上岗（绑定 Cookie 即可干活）
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" :disabled="loading">{{ loading ? '招募中…' : '招募员工' }}</button>
-      </form>
-    </div>
-
-    <!-- 批量招募 -->
-    <div v-if="tab === 'batch'" class="card form-card wide">
-      <p class="hint-block">每行一个员工，用 <code>|</code> 分隔（Cookie 可含逗号）：<code>姓名|Cookie</code> 或 <code>姓名|类型|Cookie</code></p>
-      <div class="form-row">
-        <textarea v-model="batchText" rows="10" placeholder="运营A|auth_token=...&#10;互动B|twitter_engagement|auth_token=..." />
       </div>
-      <label class="checkbox">
-        <input type="checkbox" v-model="batchAutoOnboard" checked disabled />
-        批量招募后自动上岗
-      </label>
-      <p v-if="batchResult" class="result">
-        成功 {{ batchResult.created.length }} 个，失败 {{ batchResult.failed.length }} 个
-      </p>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button @click="submitBatch" :disabled="loading">{{ loading ? '批量招募中…' : '批量招募' }}</button>
-    </div>
 
-    <!-- 员工列表 -->
-    <div class="card list-card">
-      <div class="list-header">
-        <h3>已招募员工（{{ employees.length }}）</h3>
-        <button class="secondary" @click="load">刷新</button>
-      </div>
-      <table v-if="employees.length">
+      <table v-if="filteredEmployees.length">
         <thead>
           <tr>
             <th>编号</th>
@@ -84,7 +44,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="e in employees" :key="e.id">
+          <tr v-for="e in filteredEmployees" :key="e.id">
             <td>{{ e.code }}</td>
             <td>{{ e.display_name }}</td>
             <td>{{ e.employee_type_label }}</td>
@@ -102,10 +62,64 @@
           </tr>
         </tbody>
       </table>
-      <p v-else class="empty">暂无员工，请先招募</p>
+      <p v-else class="empty">{{ employees.length ? '无匹配员工' : '暂无员工，点击「招募员工」添加' }}</p>
+      <p class="count">共 {{ filteredEmployees.length }} / {{ employees.length }} 人</p>
     </div>
 
-    <!-- Cookie 弹层 -->
+    <!-- 招募弹窗 -->
+    <div v-if="recruitModal" class="modal" @click.self="closeRecruitModal">
+      <div class="card modal-body wide">
+        <div class="modal-header">
+          <h3>招募员工</h3>
+          <button class="secondary sm" @click="closeRecruitModal">✕</button>
+        </div>
+        <div class="tabs">
+          <button :class="{ active: recruitTab === 'single' }" @click="recruitTab = 'single'">单个招募</button>
+          <button :class="{ active: recruitTab === 'batch' }" @click="recruitTab = 'batch'">批量招募</button>
+        </div>
+
+        <form v-if="recruitTab === 'single'" @submit.prevent="submitSingle">
+          <div class="form-row">
+            <label>员工姓名</label>
+            <input v-model="single.display_name" placeholder="如：运营小号A" required />
+          </div>
+          <div class="form-row">
+            <label>Twitter 账号（选填）</label>
+            <input v-model="single.twitter_handle" placeholder="@handle" />
+          </div>
+          <div class="form-row">
+            <label>员工类型</label>
+            <select v-model="single.employee_type">
+              <option v-for="t in employeeTypes" :key="t.id" :value="t.id">{{ t.label }}</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Twitter Cookie <span class="hint">（原始或 base64）</span></label>
+            <textarea v-model="single.twitter_cookie" rows="4" placeholder="auth_token=...; ct0=..." required />
+          </div>
+          <p v-if="modalError" class="error">{{ modalError }}</p>
+          <div class="modal-actions">
+            <button type="submit" :disabled="loading">{{ loading ? '招募中…' : '确认招募' }}</button>
+            <button type="button" class="secondary" @click="closeRecruitModal">取消</button>
+          </div>
+        </form>
+
+        <div v-else>
+          <p class="hint-block">每行：<code>姓名|Cookie</code> 或 <code>姓名|类型|Cookie</code></p>
+          <textarea v-model="batchText" rows="8" class="batch-area" placeholder="运营A|auth_token=...&#10;互动B|twitter_engagement|auth_token=..." />
+          <p v-if="batchResult" class="result">
+            成功 {{ batchResult.created.length }}，失败 {{ batchResult.failed.length }}
+          </p>
+          <p v-if="modalError" class="error">{{ modalError }}</p>
+          <div class="modal-actions">
+            <button @click="submitBatch" :disabled="loading">{{ loading ? '招募中…' : '确认批量招募' }}</button>
+            <button type="button" class="secondary" @click="closeRecruitModal">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cookie 弹窗 -->
     <div v-if="cookieModal" class="modal" @click.self="cookieModal = null">
       <div class="card modal-body">
         <h3>更新 Cookie — {{ cookieModal.display_name }}</h3>
@@ -120,39 +134,66 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { api, STAGE_LABELS } from '../api'
 
-const tab = ref('single')
 const employees = ref([])
 const employeeTypes = ref([
   { id: 'twitter_operator', label: '运营号' },
   { id: 'twitter_engagement', label: '互动号' },
 ])
 const loading = ref(false)
-const error = ref('')
+const modalError = ref('')
+const search = ref('')
+const filterType = ref('')
+
+const recruitModal = ref(false)
+const recruitTab = ref('single')
 
 const single = reactive({
   display_name: '',
   twitter_handle: '',
   employee_type: 'twitter_operator',
   twitter_cookie: '',
-  auto_onboard: true,
+  auto_onboard: false,
 })
 
 const batchText = ref('')
-const batchAutoOnboard = ref(true)
 const batchResult = ref(null)
-
 const cookieModal = ref(null)
 const cookieEdit = ref('')
+
+const filteredEmployees = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return employees.value.filter((e) => {
+    if (filterType.value && e.role_title !== filterType.value) return false
+    if (!q) return true
+    return (
+      e.display_name.toLowerCase().includes(q) ||
+      (e.twitter_handle || '').toLowerCase().includes(q) ||
+      e.code.toLowerCase().includes(q)
+    )
+  })
+})
+
+function openRecruitModal(tab) {
+  recruitTab.value = tab
+  modalError.value = ''
+  batchResult.value = null
+  recruitModal.value = true
+}
+
+function closeRecruitModal() {
+  recruitModal.value = false
+  modalError.value = ''
+}
 
 async function load() {
   employees.value = await api('/employees?platform=twitter')
   try {
     const res = await api('/employees/types')
     if (res.types?.length) employeeTypes.value = res.types
-  } catch { /* use defaults */ }
+  } catch { /* defaults */ }
 }
 
 function parseBatchLines(text) {
@@ -175,7 +216,7 @@ function parseBatchLines(text) {
 }
 
 async function submitSingle() {
-  error.value = ''
+  modalError.value = ''
   loading.value = true
   try {
     await api('/employees', { method: 'POST', body: JSON.stringify(single) })
@@ -183,30 +224,35 @@ async function submitSingle() {
     single.twitter_handle = ''
     single.twitter_cookie = ''
     await load()
+    closeRecruitModal()
   } catch (e) {
-    error.value = e.message
+    modalError.value = e.message
   } finally {
     loading.value = false
   }
 }
 
 async function submitBatch() {
-  error.value = ''
+  modalError.value = ''
   batchResult.value = null
   const items = parseBatchLines(batchText.value)
   if (!items.length) {
-    error.value = '请按格式填写至少一行'
+    modalError.value = '请按格式填写至少一行'
     return
   }
   loading.value = true
   try {
     batchResult.value = await api('/employees/batch', {
       method: 'POST',
-      body: JSON.stringify({ items, auto_onboard: batchAutoOnboard.value }),
+      body: JSON.stringify({ items, auto_onboard: false }),
     })
     await load()
+    if (!batchResult.value.failed.length) {
+      batchText.value = ''
+      closeRecruitModal()
+    }
   } catch (e) {
-    error.value = e.message
+    modalError.value = e.message
   } finally {
     loading.value = false
   }
@@ -227,7 +273,7 @@ async function saveCookie() {
     cookieModal.value = null
     await load()
   } catch (e) {
-    error.value = e.message
+    modalError.value = e.message
   } finally {
     loading.value = false
   }
@@ -243,30 +289,35 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
 .desc { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
 .platform-tags { display: flex; gap: 0.5rem; }
 .tag { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; border: 1px solid var(--border); }
 .tag.active { background: #14532d; color: #4ade80; border-color: #14532d; }
-.tag.disabled { color: var(--muted); opacity: 0.6; cursor: not-allowed; }
-.tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.tabs button { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
-.tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
-.form-card { max-width: 520px; margin-bottom: 1rem; }
-.form-card.wide { max-width: 100%; }
-.hint { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
-.hint-block { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
-.checkbox { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0; font-size: 0.9rem; color: var(--muted); }
-.list-card { margin-top: 0.5rem; }
-.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.tag.disabled { color: var(--muted); opacity: 0.6; }
+.list-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.filters { display: flex; gap: 0.5rem; flex: 1; }
+.search { max-width: 220px; }
+.list-actions { display: flex; gap: 0.5rem; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 .dot.ok { background: var(--success); }
 .dot.miss { background: var(--danger); }
 .actions { display: flex; gap: 0.35rem; }
 button.sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
-.empty { color: var(--muted); padding: 1rem 0; }
-.result { color: var(--success); margin: 0.5rem 0; }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-body { width: 480px; max-width: 90vw; }
+.empty { color: var(--muted); padding: 2rem 0; text-align: center; }
+.count { color: var(--muted); font-size: 0.8rem; margin-top: 0.75rem; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.modal-body { width: 480px; max-width: 100%; max-height: 90vh; overflow: auto; }
+.modal-body.wide { width: 560px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.modal-header h3 { margin: 0; }
+.tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.tabs button { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.4rem 0.75rem; }
+.tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
+.hint { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
+.hint-block { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
+.batch-area { width: 100%; margin-bottom: 0.75rem; }
 .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.result { color: var(--success); margin: 0.5rem 0; }
 </style>

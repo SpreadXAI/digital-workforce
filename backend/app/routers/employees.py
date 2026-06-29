@@ -51,9 +51,9 @@ def list_employees(
     platform: str | None = Query(None),
     employee_type: str | None = Query(None),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    q = db.query(DigitalEmployee).filter(DigitalEmployee.owner_user_id == user.id)
+    q = db.query(DigitalEmployee)
     if stage:
         q = q.filter(DigitalEmployee.stage == stage)
     if platform:
@@ -139,7 +139,7 @@ def get_employee(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     return employee_to_out(emp)
 
 
@@ -150,7 +150,7 @@ def update_employee(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     if body.display_name is not None:
         emp.display_name = body.display_name
     if body.employee_type is not None:
@@ -179,7 +179,7 @@ def update_cookie(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     emp.credentials = dump_credentials(build_twitter_credentials(body.twitter_cookie))
     if not emp.twitter_handle:
         emp.twitter_handle = infer_handle_from_cookie(body.twitter_cookie)
@@ -194,7 +194,7 @@ def delete_employee(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     db.delete(emp)
     db.commit()
 
@@ -206,7 +206,7 @@ async def transition_stage(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     allowed = _allowed_transitions(emp.stage)
     if body.stage not in allowed:
         raise HTTPException(
@@ -233,7 +233,7 @@ def bind_skill(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     if emp.stage not in (EmployeeStage.training, EmployeeStage.ready, EmployeeStage.active):
         raise HTTPException(status_code=400, detail="Skills can only be bound during training or later")
 
@@ -272,7 +272,7 @@ def unbind_skill(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     db.query(EmployeeSkill).filter(
         EmployeeSkill.employee_id == emp.id,
         EmployeeSkill.skill_id == skill_id,
@@ -289,7 +289,7 @@ async def trial_run(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_owned(db, user, employee_id)
+    emp = _get_employee(db, employee_id)
     if not has_twitter_cookie(emp):
         raise HTTPException(status_code=400, detail="须先绑定 Twitter Cookie")
 
@@ -332,7 +332,7 @@ def list_executions(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _get_owned(db, user, employee_id)
+    _get_employee(db, employee_id)
     rows = (
         db.query(TaskExecution)
         .filter(TaskExecution.employee_id == employee_id)
@@ -355,12 +355,8 @@ async def _onboard_employee(db: Session, emp: DigitalEmployee) -> None:
         raise
 
 
-def _get_owned(db: Session, user: User, employee_id: int) -> DigitalEmployee:
-    emp = (
-        db.query(DigitalEmployee)
-        .filter(DigitalEmployee.id == employee_id, DigitalEmployee.owner_user_id == user.id)
-        .first()
-    )
+def _get_employee(db: Session, employee_id: int) -> DigitalEmployee:
+    emp = db.query(DigitalEmployee).filter(DigitalEmployee.id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     return emp

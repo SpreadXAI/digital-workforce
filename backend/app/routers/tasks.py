@@ -22,9 +22,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("", response_model=list[TaskOut])
 def list_tasks(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    employee_ids = [
-        e.id for e in db.query(DigitalEmployee.id).filter(DigitalEmployee.owner_user_id == user.id).all()
-    ]
+    employee_ids = [e.id for e in db.query(DigitalEmployee.id).all()]
     if not employee_ids:
         return []
     rows = (
@@ -78,9 +76,7 @@ async def batch_create_tasks(
 
 @router.get("/executions", response_model=list[ExecutionOut])
 def list_all_executions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    employee_ids = [
-        e.id for e in db.query(DigitalEmployee.id).filter(DigitalEmployee.owner_user_id == user.id).all()
-    ]
+    employee_ids = [e.id for e in db.query(DigitalEmployee.id).all()]
     if not employee_ids:
         return []
     rows = (
@@ -100,11 +96,7 @@ async def _dispatch_one(
     title: str,
     instruction: str,
 ) -> tuple[TaskOut | None, str | None]:
-    emp = (
-        db.query(DigitalEmployee)
-        .filter(DigitalEmployee.id == employee_id, DigitalEmployee.owner_user_id == user.id)
-        .first()
-    )
+    emp = db.query(DigitalEmployee).filter(DigitalEmployee.id == employee_id).first()
     if not emp:
         return None, "员工不存在"
     if not has_twitter_cookie(emp):
