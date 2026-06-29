@@ -43,6 +43,12 @@ class Settings(BaseSettings):
         default="http://localhost:8000/api", validation_alias="DW_PUBLIC_API_BASE"
     )
 
+    account_system_base_url: str = Field(
+        default="https://spreadx-account-system-90459984647.us-central1.run.app",
+        validation_alias="ACCOUNT_SYSTEM_BASE_URL",
+    )
+    account_system_api_key: str = Field(default="", validation_alias="ACCOUNT_SYSTEM_API_KEY")
+
     @property
     def database_url(self) -> str:
         if self.sqlite_path:
