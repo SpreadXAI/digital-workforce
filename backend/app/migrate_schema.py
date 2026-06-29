@@ -42,6 +42,6 @@ def _migrate_postgres() -> None:
         conn.execute(
             text(
                 f'ALTER TABLE "{SCHEMA}".digital_employees '
-                f'ADD COLUMN IF NOT EXISTS team_id INTEGER REFERENCES "{SCHEMA}".teams(id)'
+                "ADD COLUMN IF NOT EXISTS team_id INTEGER"
             )
         )

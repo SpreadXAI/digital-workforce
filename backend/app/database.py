@@ -22,10 +22,10 @@ def ensure_schema() -> None:
 
 def init_db() -> None:
     ensure_schema()
-    if not settings.uses_sqlite:
-        with engine.begin() as conn:
+    with engine.begin() as conn:
+        if not settings.uses_sqlite:
             conn.execute(text(f'SET search_path TO "{settings.database_schema}"'))
-    Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=conn)
 
 
 def get_db():

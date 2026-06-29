@@ -22,7 +22,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { setToken, loadTeams } from '../api'
+import { api, setToken, loadTeams } from '../api'
 
 const router = useRouter()
 const email = ref('qa@spreadx.ai')

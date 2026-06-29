@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.migrate_data import migrate_team_data
 from app.migrate_schema import migrate_schema
-from app.models import User  # noqa: F401 — register models
+from app import models  # noqa: F401 — register all ORM tables
 from app.routers import auth, dashboard, employees, skills, tasks, teams
 from app.seed_data import seed_users
 from app.tactile.client import tactile
