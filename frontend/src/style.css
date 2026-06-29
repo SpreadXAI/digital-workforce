@@ -1,0 +1,76 @@
+:root {
+  --bg: #0f1419;
+  --surface: #1a2332;
+  --border: #2d3a4f;
+  --text: #e7ecf3;
+  --muted: #8b9cb3;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { min-height: 100vh; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button, .btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+button:hover, .btn:hover { background: var(--accent-hover); }
+button.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+button.danger { background: var(--danger); }
+
+input, textarea, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  width: 100%;
+  font-size: 0.9rem;
+}
+textarea { min-height: 100px; resize: vertical; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge.recruiting { background: #334155; color: #94a3b8; }
+.badge.training { background: #422006; color: #fbbf24; }
+.badge.ready { background: #1e3a5f; color: #60a5fa; }
+.badge.active { background: #14532d; color: #4ade80; }
+.badge.suspended { background: #450a0a; color: #f87171; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+
+.form-row { margin-bottom: 1rem; }
+.form-row label { display: block; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.85rem; }
+
+.error { color: var(--danger); margin-top: 0.5rem; font-size: 0.85rem; }
