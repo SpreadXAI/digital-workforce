@@ -22,6 +22,17 @@ class TaskStatus(str, enum.Enum):
     failed = "failed"
 
 
+class TeamRole(str, enum.Enum):
+    owner = "owner"
+    member = "member"
+
+
+class InviteStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    revoked = "revoked"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -31,6 +42,51 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    memberships: Mapped[list["TeamMember"]] = relationship(back_populates="user")
+
+
+class Team(Base):
+    __tablename__ = "teams"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    is_personal: Mapped[bool] = mapped_column(Boolean, default=False)
+    owner_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    members: Mapped[list["TeamMember"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    invitations: Mapped[list["TeamInvitation"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    employees: Mapped[list["DigitalEmployee"]] = relationship(back_populates="team")
+
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    role: Mapped[TeamRole] = mapped_column(Enum(TeamRole), default=TeamRole.member)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    team: Mapped[Team] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class TeamInvitation(Base):
+    __tablename__ = "team_invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    invitee_email: Mapped[str] = mapped_column(String(255), index=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    role: Mapped[TeamRole] = mapped_column(Enum(TeamRole), default=TeamRole.member)
+    status: Mapped[InviteStatus] = mapped_column(Enum(InviteStatus), default=InviteStatus.pending)
+    invited_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    team: Mapped[Team] = relationship(back_populates="invitations")
 
 
 class DigitalEmployee(Base):
@@ -46,6 +102,7 @@ class DigitalEmployee(Base):
     playbook: Mapped[str] = mapped_column(Text, default="")
     credentials: Mapped[str | None] = mapped_column(Text, nullable=True)
     stage: Mapped[EmployeeStage] = mapped_column(Enum(EmployeeStage), default=EmployeeStage.recruiting)
+    team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), index=True, nullable=True)
     owner_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     tactile_agent_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tactile_last_work_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -57,6 +114,7 @@ class DigitalEmployee(Base):
     skills: Mapped[list["EmployeeSkill"]] = relationship(back_populates="employee", cascade="all, delete-orphan")
     tasks: Mapped[list["WorkTask"]] = relationship(back_populates="employee")
     executions: Mapped[list["TaskExecution"]] = relationship(back_populates="employee")
+    team: Mapped[Team] = relationship(back_populates="employees")
 
 
 class EmployeeSkill(Base):

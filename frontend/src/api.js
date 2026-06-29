@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'dw_token'
+const TEAM_KEY = 'dw_team_id'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -10,12 +11,24 @@ export function setToken(token) {
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(TEAM_KEY)
+}
+
+export function getTeamId() {
+  const v = localStorage.getItem(TEAM_KEY)
+  return v ? Number(v) : null
+}
+
+export function setTeamId(id) {
+  localStorage.setItem(TEAM_KEY, String(id))
 }
 
 export async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
+  const teamId = getTeamId()
+  if (teamId) headers['X-Team-Id'] = String(teamId)
 
   const res = await fetch(`/api${path}`, { ...options, headers })
   if (res.status === 401) {
@@ -29,6 +42,18 @@ export async function api(path, options = {}) {
   }
   if (res.status === 204) return null
   return res.json()
+}
+
+export async function loadTeams() {
+  const teams = await api('/teams')
+  if (!teams.length) return teams
+  const current = getTeamId()
+  const exists = teams.some((t) => t.id === current)
+  if (!exists) {
+    const personal = teams.find((t) => t.is_personal) || teams[0]
+    setTeamId(personal.id)
+  }
+  return teams
 }
 
 export const EMPLOYEE_TYPE_LABELS = {

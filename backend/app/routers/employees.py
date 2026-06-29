@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -32,6 +32,7 @@ from app.schemas import (
     TrialRunRequest,
     TwitterCookieUpdate,
 )
+from app.team_utils import employee_in_team, get_current_team_id, resolve_team_id
 from app.tactile.agent_provision import ensure_agent_on_onboard, provision_agent
 from app.tactile.dispatcher import dispatch_work
 from app.tactile.skill_bindings import sync_skills_to_agent
@@ -50,10 +51,11 @@ def list_employees(
     stage: EmployeeStage | None = Query(None),
     platform: str | None = Query(None),
     employee_type: str | None = Query(None),
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    q = db.query(DigitalEmployee)
+    q = db.query(DigitalEmployee).filter(DigitalEmployee.team_id == team_id)
     if stage:
         q = q.filter(DigitalEmployee.stage == stage)
     if platform:
@@ -67,6 +69,7 @@ def list_employees(
 @router.post("", response_model=EmployeeOut, status_code=status.HTTP_201_CREATED)
 async def recruit_employee(
     body: EmployeeCreate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -84,6 +87,7 @@ async def recruit_employee(
         twitter_handle=handle,
         credentials=dump_credentials(build_twitter_credentials(body.twitter_cookie)),
         stage=EmployeeStage.recruiting,
+        team_id=team_id,
         owner_user_id=user.id,
     )
     db.add(emp)
@@ -99,6 +103,7 @@ async def recruit_employee(
 @router.post("/batch", response_model=EmployeeBatchResult)
 async def batch_recruit(
     body: EmployeeBatchCreate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -118,6 +123,7 @@ async def batch_recruit(
                 twitter_handle=handle,
                 credentials=dump_credentials(build_twitter_credentials(item.twitter_cookie)),
                 stage=EmployeeStage.recruiting,
+                team_id=team_id,
                 owner_user_id=user.id,
             )
             db.add(emp)
@@ -136,10 +142,11 @@ async def batch_recruit(
 @router.get("/{employee_id}", response_model=EmployeeOut)
 def get_employee(
     employee_id: int,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = employee_in_team(db, employee_id, team_id)
     return employee_to_out(emp)
 
 
@@ -147,10 +154,11 @@ def get_employee(
 def update_employee(
     employee_id: int,
     body: EmployeeUpdate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     if body.display_name is not None:
         emp.display_name = body.display_name
     if body.employee_type is not None:
@@ -176,10 +184,11 @@ def update_employee(
 def update_cookie(
     employee_id: int,
     body: TwitterCookieUpdate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     emp.credentials = dump_credentials(build_twitter_credentials(body.twitter_cookie))
     if not emp.twitter_handle:
         emp.twitter_handle = infer_handle_from_cookie(body.twitter_cookie)
@@ -191,10 +200,11 @@ def update_cookie(
 @router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_employee(
     employee_id: int,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     db.delete(emp)
     db.commit()
 
@@ -203,10 +213,11 @@ def delete_employee(
 async def transition_stage(
     employee_id: int,
     body: StageTransition,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     allowed = _allowed_transitions(emp.stage)
     if body.stage not in allowed:
         raise HTTPException(
@@ -230,10 +241,11 @@ async def transition_stage(
 def bind_skill(
     employee_id: int,
     body: EmployeeSkillIn,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     if emp.stage not in (EmployeeStage.training, EmployeeStage.ready, EmployeeStage.active):
         raise HTTPException(status_code=400, detail="Skills can only be bound during training or later")
 
@@ -269,10 +281,11 @@ def bind_skill(
 def unbind_skill(
     employee_id: int,
     skill_id: int,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     db.query(EmployeeSkill).filter(
         EmployeeSkill.employee_id == emp.id,
         EmployeeSkill.skill_id == skill_id,
@@ -286,10 +299,11 @@ def unbind_skill(
 async def trial_run(
     employee_id: int,
     body: TrialRunRequest,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    emp = _get_employee(db, employee_id)
+    emp = _get_employee(db, employee_id, team_id)
     if not has_twitter_cookie(emp):
         raise HTTPException(status_code=400, detail="须先绑定 Twitter Cookie")
 
@@ -329,10 +343,11 @@ async def trial_run(
 @router.get("/{employee_id}/executions", response_model=list[ExecutionOut])
 def list_executions(
     employee_id: int,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _get_employee(db, employee_id)
+    _get_employee(db, employee_id, team_id)
     rows = (
         db.query(TaskExecution)
         .filter(TaskExecution.employee_id == employee_id)
@@ -355,11 +370,8 @@ async def _onboard_employee(db: Session, emp: DigitalEmployee) -> None:
         raise
 
 
-def _get_employee(db: Session, employee_id: int) -> DigitalEmployee:
-    emp = db.query(DigitalEmployee).filter(DigitalEmployee.id == employee_id).first()
-    if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found")
-    return emp
+def _get_employee(db: Session, employee_id: int, team_id: int) -> DigitalEmployee:
+    return employee_in_team(db, employee_id, team_id)
 
 
 def _allowed_transitions(current: EmployeeStage) -> set[EmployeeStage]:

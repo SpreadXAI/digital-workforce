@@ -12,6 +12,7 @@ from app.database import get_db
 from app.employee_utils import has_twitter_cookie, parse_credentials
 from app.models import DigitalEmployee, EmployeeStage, TaskExecution, TaskStatus, User, WorkTask
 from app.schemas import BatchTaskCreate, BatchTaskResult, ExecutionOut, TaskCreate, TaskOut
+from app.team_utils import employee_in_team, get_current_team_id
 from app.tactile.agent_provision import provision_agent
 from app.tactile.dispatcher import dispatch_work
 from app.tactile.skill_bindings import sync_skills_to_agent
@@ -20,28 +21,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
+def _team_employee_ids(db: Session, team_id: int) -> list[int]:
+    return [e.id for e in db.query(DigitalEmployee.id).filter(DigitalEmployee.team_id == team_id).all()]
+
+
 @router.get("", response_model=list[TaskOut])
-def list_tasks(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    employee_ids = [e.id for e in db.query(DigitalEmployee.id).all()]
+def list_tasks(
+    team_id: int = Depends(get_current_team_id),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    employee_ids = _team_employee_ids(db, team_id)
     if not employee_ids:
         return []
-    rows = (
+    return (
         db.query(WorkTask)
         .filter(WorkTask.employee_id.in_(employee_ids))
         .order_by(WorkTask.id.desc())
         .limit(100)
         .all()
     )
-    return rows
 
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 async def create_task(
     body: TaskCreate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    task, err = await _dispatch_one(db, user, body.employee_id, body.title, body.instruction)
+    task, err = await _dispatch_one(db, user, team_id, body.employee_id, body.title, body.instruction)
     if err:
         raise HTTPException(status_code=502, detail=err)
     db.commit()
@@ -52,6 +61,7 @@ async def create_task(
 @router.post("/batch", response_model=BatchTaskResult)
 async def batch_create_tasks(
     body: BatchTaskCreate,
+    team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -59,45 +69,50 @@ async def batch_create_tasks(
     failed: list[dict[str, str]] = []
 
     for eid in body.employee_ids:
-        task, err = await _dispatch_one(db, user, eid, body.title, body.instruction)
+        task, err = await _dispatch_one(db, user, team_id, eid, body.title, body.instruction)
         if task:
             dispatched.append(task)
         else:
-            emp = db.get(DigitalEmployee, eid)
-            failed.append({
-                "employee_id": str(eid),
-                "display_name": emp.display_name if emp else "",
-                "error": err or "unknown",
-            })
+            try:
+                emp = employee_in_team(db, eid, team_id)
+                name = emp.display_name
+            except HTTPException:
+                name = ""
+            failed.append({"employee_id": str(eid), "display_name": name, "error": err or "unknown"})
 
     db.commit()
     return BatchTaskResult(dispatched=dispatched, failed=failed)
 
 
 @router.get("/executions", response_model=list[ExecutionOut])
-def list_all_executions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    employee_ids = [e.id for e in db.query(DigitalEmployee.id).all()]
+def list_all_executions(
+    team_id: int = Depends(get_current_team_id),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    employee_ids = _team_employee_ids(db, team_id)
     if not employee_ids:
         return []
-    rows = (
+    return (
         db.query(TaskExecution)
         .filter(TaskExecution.employee_id.in_(employee_ids))
         .order_by(TaskExecution.id.desc())
         .limit(100)
         .all()
     )
-    return rows
 
 
 async def _dispatch_one(
     db: Session,
     user: User,
+    team_id: int,
     employee_id: int,
     title: str,
     instruction: str,
 ) -> tuple[TaskOut | None, str | None]:
-    emp = db.query(DigitalEmployee).filter(DigitalEmployee.id == employee_id).first()
-    if not emp:
+    try:
+        emp = employee_in_team(db, employee_id, team_id)
+    except HTTPException:
         return None, "员工不存在"
     if not has_twitter_cookie(emp):
         return None, "未绑定 Twitter Cookie"

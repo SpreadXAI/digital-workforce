@@ -22,7 +22,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, setToken } from '../api'
+import { setToken, loadTeams } from '../api'
 
 const router = useRouter()
 const email = ref('qa@spreadx.ai')
@@ -39,6 +39,11 @@ async function submit() {
       body: JSON.stringify({ email: email.value, password: password.value }),
     })
     setToken(data.access_token)
+    await loadTeams()
+    const invite = new URLSearchParams(window.location.search).get('invite')
+    if (invite) {
+      await api('/teams/invites/accept', { method: 'POST', body: JSON.stringify({ token: invite }) })
+    }
     router.push('/')
   } catch (e) {
     error.value = e.message

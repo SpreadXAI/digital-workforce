@@ -7,10 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import SessionLocal, init_db
+from app.migrate_data import migrate_team_data
 from app.migrate_schema import migrate_schema
 from app.models import User  # noqa: F401 — register models
-from app.models import User  # noqa: F401 — register models
-from app.routers import auth, dashboard, employees, skills, tasks
+from app.routers import auth, dashboard, employees, skills, tasks, teams
 from app.seed_data import seed_users
 from app.tactile.client import tactile
 
@@ -26,6 +26,7 @@ async def lifespan(_: FastAPI):
         if not settings.uses_sqlite:
             db.execute(__import__("sqlalchemy").text(f'SET search_path TO "{settings.database_schema}"'))
         seed_users(db)
+        migrate_team_data(db)
     finally:
         db.close()
     yield
@@ -45,6 +46,7 @@ app.add_middleware(
 
 api = settings.api_prefix
 app.include_router(auth.router, prefix=api)
+app.include_router(teams.router, prefix=api)
 app.include_router(dashboard.router, prefix=api)
 app.include_router(employees.router, prefix=api)
 app.include_router(tasks.router, prefix=api)
