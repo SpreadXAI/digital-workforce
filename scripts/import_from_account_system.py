@@ -116,7 +116,7 @@ def import_to_db(
             handle = f"@{username}"
             existing = (
                 db.query(DigitalEmployee)
-                .filter(DigitalEmployee.owner_user_id == owner.id, DigitalEmployee.twitter_handle == handle)
+                .filter(DigitalEmployee.team_id == team_id, DigitalEmployee.twitter_handle == handle)
                 .first()
             )
             if existing:
@@ -135,7 +135,8 @@ def import_to_db(
                 twitter_handle=handle,
                 credentials=dump_credentials(build_twitter_credentials(result)),
                 stage=EmployeeStage.recruiting,
-                owner_user_id=owner.id,
+                team_id=team_id,
+                owner_user_id=user.id,
             )
             db.add(emp)
             db.flush()
