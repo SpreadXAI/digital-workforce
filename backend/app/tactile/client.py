@@ -1,4 +1,4 @@
-"""Tactile API client (minimal subset for digital workforce)."""
+"""Tactile CloudAgentLab Gateway client."""
 
 from __future__ import annotations
 
@@ -7,106 +7,123 @@ from typing import Any
 
 import httpx
 
-from app.config import settings
+from app.tactile_config import TactileRuntimeConfig
 
 logger = logging.getLogger(__name__)
 
 
 class TactileClient:
     def __init__(self) -> None:
-        self.base_url = settings.tactile_base_url.rstrip("/")
-        self.api_key = settings.tactile_api_key
-        self.workspace_id = settings.tactile_workspace_id
-        self._client: httpx.AsyncClient | None = None
+        self._clients: dict[str, httpx.AsyncClient] = {}
 
-    @property
-    def configured(self) -> bool:
-        return bool(self.api_key and self.workspace_id)
+    def _client_key(self, config: TactileRuntimeConfig) -> str:
+        return f"{config.base_url}|{config.api_key}"
 
-    def _headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+    def _headers(self, config: TactileRuntimeConfig) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if config.api_key:
+            headers["X-API-Key"] = config.api_key
+        return headers
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                headers=self._headers(),
-                timeout=httpx.Timeout(60.0, connect=10.0),
+    async def _get_client(self, config: TactileRuntimeConfig) -> httpx.AsyncClient:
+        key = self._client_key(config)
+        client = self._clients.get(key)
+        if client is None or client.is_closed:
+            client = httpx.AsyncClient(
+                base_url=config.base_url,
+                headers=self._headers(config),
+                timeout=httpx.Timeout(120.0, connect=15.0),
             )
-        return self._client
+            self._clients[key] = client
+        return client
 
     async def close(self) -> None:
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
+        for client in self._clients.values():
+            if not client.is_closed:
+                await client.aclose()
+        self._clients.clear()
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
-        client = await self._get_client()
+    async def _request(self, config: TactileRuntimeConfig, method: str, path: str, **kwargs: Any) -> Any:
+        client = await self._get_client(config)
         resp = await client.request(method, path, **kwargs)
         if resp.status_code >= 400:
             logger.error("Tactile %s %s -> %s %s", method, path, resp.status_code, resp.text[:500])
             resp.raise_for_status()
         if resp.status_code == 204:
             return None
+        if not resp.content:
+            return None
         return resp.json()
 
-    async def list_agents(self) -> list[dict]:
-        data = await self._request("GET", "/api/v1/agents")
+    async def health(self, config: TactileRuntimeConfig) -> dict:
+        return await self._request(config, "GET", "/api/health")
+
+    async def list_agents(self, config: TactileRuntimeConfig) -> list[dict]:
+        data = await self._request(
+            config,
+            "GET",
+            "/api/agent",
+            params={"workspace_id": config.workspace_id},
+        )
         return data if isinstance(data, list) else data.get("items", data.get("agents", []))
 
-    async def get_agent(self, agent_id: int) -> dict:
-        return await self._request("GET", f"/api/v1/agents/{agent_id}")
-
-    async def create_agent(self, name: str, instructions: str = "", model: str = "gpt-4o") -> dict:
-        return await self._request(
-            "POST",
-            "/api/v1/agents",
-            json={
-                "name": name,
-                "instructions": instructions,
-                "model": model,
-                "workspace_id": self.workspace_id,
-            },
-        )
-
-    async def update_agent(self, agent_id: int, **fields: Any) -> dict:
-        return await self._request("PATCH", f"/api/v1/agents/{agent_id}", json=fields)
-
-    async def list_skills(self, agent_id: int) -> list[dict]:
-        data = await self._request("GET", f"/api/v1/agents/{agent_id}/skills")
-        return data if isinstance(data, list) else data.get("items", data.get("skills", []))
-
-    async def install_skill(self, agent_id: int, skill_id: int) -> dict:
-        return await self._request(
-            "POST",
-            f"/api/v1/agents/{agent_id}/skills",
-            json={"skill_id": skill_id},
-        )
-
-    async def list_works(self, agent_id: int, limit: int = 20) -> list[dict]:
-        data = await self._request("GET", f"/api/v1/agents/{agent_id}/works", params={"limit": limit})
-        return data if isinstance(data, list) else data.get("items", data.get("works", []))
-
-    async def get_work(self, work_id: int) -> dict:
-        return await self._request("GET", f"/api/v1/works/{work_id}")
+    async def get_agent(self, config: TactileRuntimeConfig, agent_id: int) -> dict:
+        return await self._request(config, "GET", f"/api/agent/{agent_id}")
 
     async def create_work(
         self,
-        agent_id: int,
-        content: str,
+        config: TactileRuntimeConfig,
         *,
-        dispatch_env_json: str | None = None,
+        agent_id: int,
+        name: str,
+        content: str,
+        env_vars: list[dict[str, Any]] | None = None,
     ) -> dict:
-        payload: dict[str, Any] = {"agent_id": agent_id, "content": content}
-        if dispatch_env_json:
-            payload["dispatch_env_json"] = dispatch_env_json
-        return await self._request("POST", "/api/v1/works", json=payload)
+        payload: dict[str, Any] = {
+            "workspace_id": config.workspace_id,
+            "agent_id": agent_id,
+            "name": name[:200],
+            "content": content,
+            "machine_type": config.machine_type,
+        }
+        if env_vars:
+            payload["env_vars"] = env_vars
+        return await self._request(config, "POST", "/api/work", json=payload)
 
-    async def list_skill_plaza(self) -> list[dict]:
-        data = await self._request("GET", "/api/v1/skill-plaza")
+    async def get_work(self, config: TactileRuntimeConfig, work_id: int) -> dict:
+        return await self._request(config, "GET", f"/api/work/{work_id}")
+
+    async def list_works(self, config: TactileRuntimeConfig, *, limit: int = 20) -> list[dict]:
+        data = await self._request(
+            config,
+            "GET",
+            "/api/work",
+            params={"workspace_id": config.workspace_id, "limit": limit},
+        )
+        return data if isinstance(data, list) else data.get("items", data.get("works", []))
+
+    async def list_skill_plaza(self, config: TactileRuntimeConfig) -> list[dict]:
+        data = await self._request(
+            config,
+            "GET",
+            "/api/skill-plaza",
+            params={"workspace_id": config.workspace_id},
+        )
         return data if isinstance(data, list) else data.get("items", data.get("skills", []))
+
+    async def update_agent_bindings(
+        self,
+        config: TactileRuntimeConfig,
+        agent_id: int,
+        *,
+        skills: list[dict[str, int]],
+    ) -> dict:
+        return await self._request(
+            config,
+            "PUT",
+            f"/api/agent/{agent_id}/bindings",
+            json={"skills": skills},
+        )
 
 
 tactile = TactileClient()

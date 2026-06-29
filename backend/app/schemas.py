@@ -156,6 +156,7 @@ class ExecutionOut(BaseModel):
     message: str
     status: TaskStatus
     tactile_work_id: int | None
+    tactile_session_id: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -178,6 +179,32 @@ class SkillCatalogItem(BaseModel):
     slug: str = ""
     description: str = ""
     raw: dict[str, Any] = {}
+
+
+class TactileSettingsOut(BaseModel):
+    api_base: str
+    api_key_masked: str
+    has_api_key: bool
+    workspace_id: int
+    agent_id: int | None
+    machine_type: str
+    configured: bool
+    ready: bool
+
+
+class TactileSettingsUpdate(BaseModel):
+    api_base: str | None = None
+    api_key: str | None = None
+    workspace_id: int | None = None
+    agent_id: int | None = None
+    machine_type: str | None = None
+
+
+class TactileHealthOut(BaseModel):
+    ok: bool
+    status: str = ""
+    service: str = ""
+    detail: str = ""
 
 
 EmployeeBatchResult.model_rebuild()

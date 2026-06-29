@@ -1,24 +1,24 @@
-"""Dispatch work to Tactile with runtime ENV."""
+"""Dispatch work to Tactile Gateway (shared Agent for all employees)."""
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from app.tactile.client import tactile
+from app.tactile_config import TactileRuntimeConfig, require_agent_id
 
 logger = logging.getLogger(__name__)
 
 
-def build_dispatch_env(
+def build_env_vars(
     *,
     platform: str | None = None,
     credentials: dict[str, str] | None = None,
     employee_id: int | None = None,
     twitter_handle: str | None = None,
     extra: dict[str, Any] | None = None,
-) -> str:
+) -> list[dict[str, Any]]:
     env: dict[str, str] = {}
     if platform:
         env["PLATFORM"] = platform
@@ -34,20 +34,22 @@ def build_dispatch_env(
         for k, v in extra.items():
             if v is not None:
                 env[str(k).upper()] = str(v)
-    return json.dumps(env, ensure_ascii=False)
+    return [{"env_key": k, "env_value": v, "is_secret": k.endswith("_COOKIE")} for k, v in env.items()]
 
 
 async def dispatch_work(
-    agent_id: int,
-    content: str,
+    config: TactileRuntimeConfig,
     *,
+    title: str,
+    content: str,
     platform: str | None = None,
     credentials: dict[str, str] | None = None,
     employee_id: int | None = None,
     twitter_handle: str | None = None,
     extra_env: dict[str, Any] | None = None,
 ) -> dict:
-    dispatch_env_json = build_dispatch_env(
+    agent_id = require_agent_id(config)
+    env_vars = build_env_vars(
         platform=platform,
         credentials=credentials,
         employee_id=employee_id,
@@ -55,7 +57,9 @@ async def dispatch_work(
         extra=extra_env,
     )
     return await tactile.create_work(
-        agent_id,
-        content,
-        dispatch_env_json=dispatch_env_json,
+        config,
+        agent_id=agent_id,
+        name=title,
+        content=content,
+        env_vars=env_vars,
     )

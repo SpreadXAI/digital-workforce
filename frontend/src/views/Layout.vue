@@ -22,7 +22,7 @@
       </div>
 
       <nav>
-        <router-link v-for="item in NAV" :key="item.path" :to="item.path" class="nav-item">
+        <router-link v-for="item in navItems" :key="item.path" :to="item.path" class="nav-item">
           {{ item.label }}
         </router-link>
       </nav>
@@ -58,7 +58,7 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NAV, api, clearToken, getTeamId, loadTeams, setTeamId } from '../api'
+import { NAV, ADMIN_NAV, api, clearToken, getTeamId, loadCurrentUser, loadTeams, setTeamId } from '../api'
 
 const router = useRouter()
 const route = useRoute()
@@ -71,6 +71,8 @@ const inviteEmail = ref('')
 const inviteLink = ref('')
 const inviteError = ref('')
 const inviteLoading = ref(false)
+const isAdmin = ref(false)
+const navItems = ref([...NAV])
 
 async function refreshTeams() {
   teams.value = await loadTeams()
@@ -121,6 +123,13 @@ function logout() {
 }
 
 onMounted(async () => {
+  try {
+    const user = await loadCurrentUser()
+    isAdmin.value = !!user.is_admin
+    if (isAdmin.value) navItems.value = [...NAV, ADMIN_NAV]
+  } catch {
+    isAdmin.value = false
+  }
   await refreshTeams()
   const token = route.query.invite
   if (token && typeof token === 'string') {

@@ -33,6 +33,18 @@ class InviteStatus(str, enum.Enum):
     revoked = "revoked"
 
 
+class PlatformSetting(Base):
+    """Key-value platform config (admin-managed, overrides env)."""
+
+    __tablename__ = "platform_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 

@@ -5,22 +5,26 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.database import get_db
 from app.models import User
 from app.schemas import SkillCatalogItem
 from app.tactile.client import tactile
+from app.tactile_config import load_tactile_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/skills", tags=["skills"])
 
 
 @router.get("/catalog", response_model=list[SkillCatalogItem])
-async def skill_catalog(_: User = Depends(get_current_user)):
-    if not tactile.configured:
+async def skill_catalog(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    config = load_tactile_config(db)
+    if not config.configured:
         return []
     try:
-        items = await tactile.list_skill_plaza()
+        items = await tactile.list_skill_plaza(config)
         result: list[SkillCatalogItem] = []
         for item in items:
             result.append(

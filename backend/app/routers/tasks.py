@@ -1,4 +1,4 @@
-"""Task center — dispatch work to active employees."""
+"""Task center — dispatch work via shared Tactile Agent."""
 
 from __future__ import annotations
 
@@ -13,9 +13,8 @@ from app.employee_utils import has_twitter_cookie, parse_credentials
 from app.models import DigitalEmployee, EmployeeStage, TaskExecution, TaskStatus, User, WorkTask
 from app.schemas import BatchTaskCreate, BatchTaskResult, ExecutionOut, TaskCreate, TaskOut
 from app.team_utils import employee_in_team, get_current_team_id
-from app.tactile.agent_provision import provision_agent
 from app.tactile.dispatcher import dispatch_work
-from app.tactile.skill_bindings import sync_skills_to_agent
+from app.tactile_config import load_tactile_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -134,21 +133,20 @@ async def _dispatch_one(
     db.add(task)
     db.flush()
 
-    try:
-        if not emp.tactile_agent_id:
-            await provision_agent(db, emp)
-            await sync_skills_to_agent(db, emp)
-            emp.stage = EmployeeStage.active
+    config = load_tactile_config(db)
 
+    try:
         work = await dispatch_work(
-            emp.tactile_agent_id,
-            instruction,
+            config,
+            title=title,
+            content=instruction,
             platform=emp.platform,
             credentials=parse_credentials(emp.credentials),
             employee_id=emp.id,
             twitter_handle=emp.twitter_handle,
         )
         work_id = int(work.get("id", 0)) or None
+        session_id = work.get("session_id")
         task.status = TaskStatus.running
         emp.tactile_last_work_id = work_id
         emp.stage = EmployeeStage.active
@@ -160,6 +158,7 @@ async def _dispatch_one(
                 message=instruction,
                 status=TaskStatus.running,
                 tactile_work_id=work_id,
+                tactile_session_id=str(session_id) if session_id else None,
             )
         )
         db.flush()

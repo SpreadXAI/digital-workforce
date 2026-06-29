@@ -10,8 +10,9 @@ from app.database import SessionLocal, init_db
 from app.migrate_data import migrate_team_data
 from app.migrate_schema import migrate_schema
 from app import models  # noqa: F401 — register all ORM tables
-from app.routers import auth, dashboard, employees, skills, tasks, teams
+from app.routers import admin, auth, dashboard, employees, skills, tasks, teams
 from app.seed_data import seed_users
+from app.seed_tactile import seed_tactile_settings
 from app.tactile.client import tactile
 
 settings = get_settings()
@@ -26,6 +27,7 @@ async def lifespan(_: FastAPI):
         if not settings.uses_sqlite:
             db.execute(__import__("sqlalchemy").text(f'SET search_path TO "{settings.database_schema}"'))
         seed_users(db)
+        seed_tactile_settings(db)
         migrate_team_data(db)
     finally:
         db.close()
@@ -46,6 +48,7 @@ app.add_middleware(
 
 api = settings.api_prefix
 app.include_router(auth.router, prefix=api)
+app.include_router(admin.router, prefix=api)
 app.include_router(teams.router, prefix=api)
 app.include_router(dashboard.router, prefix=api)
 app.include_router(employees.router, prefix=api)

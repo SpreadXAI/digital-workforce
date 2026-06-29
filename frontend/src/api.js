@@ -75,3 +75,9 @@ export const NAV = [
   { path: '/tasks', label: '批量派活' },
   { path: '/logs', label: '执行日志' },
 ]
+
+export const ADMIN_NAV = { path: '/admin', label: '管理台' }
+
+export async function loadCurrentUser() {
+  return api('/auth/me')
+}

@@ -49,10 +49,9 @@ python deploy-singapore.py
 
 | 项 | 值 |
 |----|-----|
-| **Tactile API** | `https://foxrouter.com/api` |
-| **工作空间** | SpreadX-twitter（workspace_id=6） |
-| **模板 Agent** | `TACTILE_AGENT_ID=5` |
-| **执行模型** | **每数字员工一个 Tactile Agent**（上岗时 provision） |
+| **测试 API** | `https://test.foxrouter.com/api` |
+| **Agent** | 全员共用一个，在 **管理台** `/admin` 配置 `Agent ID` |
+| **配置 API** | `GET/PUT /api/admin/tactile`（仅 admin） |
 
 ## 用户流程
 

@@ -38,25 +38,27 @@ TACTILE_AGENT_ID=<固定 agent_id>
 
 ### 任务映射（核心契约）
 
-**本平台每条派活任务 ↔ Tactile 一条 Work Item（任务）**
+**全员共用一个 Tactile Agent**（`TACTILE_AGENT_ID`，在管理台 `/admin` 配置）。
+
+**本平台每条派活任务 ↔ Tactile 一条 Work Item**
 
 | digital-workforce | Tactile Gateway |
 |-------------------|-----------------|
 | `work_tasks` 表一行 | `POST /api/work` 创建的任务 |
-| `work_tasks.id` | 本地主键 |
 | `task_executions.tactile_work_id` | Tactile 返回的 `work.id` |
-| `task_executions.tactile_session_id` | Tactile 返回的 `session_id`（WebSocket 对话用） |
-| `digital_employees.tactile_last_work_id` | 该员工最近一次 Tactile 任务 ID |
+| `task_executions.tactile_session_id` | Tactile 返回的 `session_id` |
 | 派活指令 `instruction` | `POST /api/work` 的 `content` |
+| 员工运行时环境 | `env_vars`（`TWITTER_COOKIE`、`DW_EMPLOYEE_ID` 等） |
 
-派活流程（目标）：
+管理台 API（仅 `is_admin`）：
 
-1. 使用 **固定 `TACTILE_AGENT_ID`** + **`TACTILE_WORKSPACE_ID`**
-2. `POST /api/work` 创建任务，传入 `content`（员工指令）及运行时环境变量（`TWITTER_COOKIE`、`DW_EMPLOYEE_ID`、`TWITTER_HANDLE` 等）
-3. 将返回的 `id`、`session_id` 写回 `task_executions` / `work_tasks` 状态
-4. 需要流式对话时，连接 `wss://test.foxrouter.com/ws/agent/{session_id}?access_token=...`
+- `GET /api/admin/tactile` — 读取配置
+- `PUT /api/admin/tactile` — 更新 API Base / Key / Workspace / Agent ID
+- `POST /api/admin/tactile/test` — 探测 `GET /api/health`
 
-> 当前代码 `backend/app/tactile/` 仍使用旧版 `/api/v1/*` 路径及部分「每员工一个 Agent」逻辑；后续迭代应切换到本文档的 Gateway API，并统一使用固定 Agent ID。
+配置存于 `platform_settings` 表，优先于环境变量。
+
+> 代码已切换至 Gateway `/api/work`、`/api/agent` 等新路径；不再按员工动态创建 Agent。
 
 ---
 

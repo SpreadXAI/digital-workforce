@@ -1,4 +1,4 @@
-"""Sync employee skill bindings to Tactile agent."""
+"""Sync employee skill bindings to the shared Tactile Agent."""
 
 from __future__ import annotations
 
@@ -8,24 +8,25 @@ from sqlalchemy.orm import Session
 
 from app.models import DigitalEmployee, EmployeeSkill
 from app.tactile.client import tactile
+from app.tactile_config import TactileRuntimeConfig, require_agent_id
 
 logger = logging.getLogger(__name__)
 
 
-async def sync_skills_to_agent(db: Session, employee: DigitalEmployee) -> list[int]:
-    if not employee.tactile_agent_id:
-        raise RuntimeError("Employee has no Tactile agent")
+async def sync_skills_to_agent(
+    db: Session,
+    employee: DigitalEmployee,
+    config: TactileRuntimeConfig,
+) -> list[int]:
+    agent_id = require_agent_id(config)
+    bindings = db.query(EmployeeSkill).filter(EmployeeSkill.employee_id == employee.id).all()
+    if not bindings:
+        return []
 
-    bindings = (
-        db.query(EmployeeSkill)
-        .filter(EmployeeSkill.employee_id == employee.id)
-        .all()
-    )
-    installed: list[int] = []
-    for b in bindings:
-        try:
-            await tactile.install_skill(employee.tactile_agent_id, b.skill_id)
-            installed.append(b.skill_id)
-        except Exception as e:
-            logger.warning("Skill %s install failed for employee %s: %s", b.skill_id, employee.id, e)
-    return installed
+    skills = [{"skill_id": b.skill_id, "version_id": b.version_id} for b in bindings]
+    try:
+        await tactile.update_agent_bindings(config, agent_id, skills=skills)
+        return [b.skill_id for b in bindings]
+    except Exception as e:
+        logger.warning("Skill binding sync failed for employee %s: %s", employee.id, e)
+        raise

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -32,10 +32,10 @@ from app.schemas import (
     TrialRunRequest,
     TwitterCookieUpdate,
 )
-from app.team_utils import employee_in_team, get_current_team_id, resolve_team_id
-from app.tactile.agent_provision import ensure_agent_on_onboard, provision_agent
+from app.team_utils import employee_in_team, get_current_team_id
 from app.tactile.dispatcher import dispatch_work
 from app.tactile.skill_bindings import sync_skills_to_agent
+from app.tactile_config import load_tactile_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -93,7 +93,7 @@ async def recruit_employee(
     db.add(emp)
     db.flush()
     if body.auto_onboard:
-        await _onboard_employee(db, emp)
+        await _mark_active_if_ready(db, emp)
 
     db.commit()
     db.refresh(emp)
@@ -129,7 +129,7 @@ async def batch_recruit(
             db.add(emp)
             db.flush()
             if body.auto_onboard:
-                await _onboard_employee(db, emp)
+                await _mark_active_if_ready(db, emp)
             db.flush()
             created.append(employee_to_out(emp))
         except Exception as e:
@@ -228,7 +228,7 @@ async def transition_stage(
     if body.stage == EmployeeStage.active:
         if not has_twitter_cookie(emp):
             raise HTTPException(status_code=400, detail="上岗前须绑定 Twitter Cookie")
-        await _onboard_employee(db, emp)
+        emp.stage = EmployeeStage.active
     else:
         emp.stage = body.stage
 
@@ -238,7 +238,7 @@ async def transition_stage(
 
 
 @router.post("/{employee_id}/skills", response_model=EmployeeOut)
-def bind_skill(
+async def bind_skill(
     employee_id: int,
     body: EmployeeSkillIn,
     team_id: int = Depends(get_current_team_id),
@@ -272,6 +272,12 @@ def bind_skill(
                 outputs_json=body.outputs_json,
             )
         )
+    config = load_tactile_config(db)
+    if config.ready:
+        try:
+            await sync_skills_to_agent(db, emp, config)
+        except Exception as e:
+            logger.warning("Skill sync skipped for employee %s: %s", emp.id, e)
     db.commit()
     db.refresh(emp)
     return employee_to_out(emp)
@@ -308,21 +314,21 @@ async def trial_run(
         raise HTTPException(status_code=400, detail="须先绑定 Twitter Cookie")
 
     try:
-        if emp.stage != EmployeeStage.active:
-            await _onboard_employee(db, emp)
-        elif not emp.tactile_agent_id:
-            await provision_agent(db, emp)
-            await sync_skills_to_agent(db, emp)
+        config = load_tactile_config(db)
+        if emp.stage != EmployeeStage.active and has_twitter_cookie(emp):
+            emp.stage = EmployeeStage.active
 
         work = await dispatch_work(
-            emp.tactile_agent_id,
-            body.instruction,
+            config,
+            title=f"试跑 · {emp.display_name}",
+            content=body.instruction,
             platform=emp.platform,
             credentials=parse_credentials(emp.credentials),
             employee_id=emp.id,
             twitter_handle=emp.twitter_handle,
         )
         work_id = int(work.get("id", 0)) or None
+        session_id = work.get("session_id")
         emp.tactile_last_work_id = work_id
         execution = TaskExecution(
             employee_id=emp.id,
@@ -330,6 +336,7 @@ async def trial_run(
             message=body.instruction,
             status=TaskStatus.running,
             tactile_work_id=work_id,
+            tactile_session_id=str(session_id) if session_id else None,
         )
         db.add(execution)
         db.commit()
@@ -358,16 +365,9 @@ def list_executions(
     return rows
 
 
-async def _onboard_employee(db: Session, emp: DigitalEmployee) -> None:
-    if not has_twitter_cookie(emp):
-        raise ValueError("Twitter Cookie 未绑定")
-    try:
-        await ensure_agent_on_onboard(db, emp)
-        await sync_skills_to_agent(db, emp)
+async def _mark_active_if_ready(db: Session, emp: DigitalEmployee) -> None:
+    if has_twitter_cookie(emp):
         emp.stage = EmployeeStage.active
-    except Exception as e:
-        logger.exception("Onboard failed for employee %s", emp.id)
-        raise
 
 
 def _get_employee(db: Session, employee_id: int, team_id: int) -> DigitalEmployee:
