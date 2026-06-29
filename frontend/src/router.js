@@ -4,9 +4,6 @@ import Layout from './views/Layout.vue'
 import LoginView from './views/LoginView.vue'
 import DashboardView from './views/DashboardView.vue'
 import RecruitView from './views/RecruitView.vue'
-import TrainView from './views/TrainView.vue'
-import RosterView from './views/RosterView.vue'
-import EmployeeDetailView from './views/EmployeeDetailView.vue'
 import TasksView from './views/TasksView.vue'
 import LogsView from './views/LogsView.vue'
 
@@ -18,9 +15,9 @@ const routes = [
     children: [
       { path: '', component: DashboardView },
       { path: 'recruit', component: RecruitView },
-      { path: 'train', component: TrainView },
-      { path: 'roster', component: RosterView },
-      { path: 'employees/:id', component: EmployeeDetailView },
+      { path: 'train', redirect: '/recruit' },
+      { path: 'roster', redirect: '/recruit' },
+      { path: 'employees/:id', redirect: '/recruit' },
       { path: 'tasks', component: TasksView },
       { path: 'logs', component: LogsView },
     ],

@@ -2,8 +2,8 @@
   <div class="recruit-page">
     <div class="page-header">
       <div>
-        <h2>招募中心 · Twitter 员工</h2>
-        <p class="desc">招募并绑定 Twitter Cookie（base64 存储），招募后自动上岗，可批量派活。</p>
+        <h2>员工管理 · Twitter</h2>
+        <p class="desc">绑定 Cookie 即可上岗干活，支持批量招募与批量派活。</p>
       </div>
       <div class="platform-tags">
         <span class="tag active">Twitter / X</span>
@@ -15,7 +15,6 @@
     <div class="tabs">
       <button :class="{ active: tab === 'single' }" @click="tab = 'single'">单个招募</button>
       <button :class="{ active: tab === 'batch' }" @click="tab = 'batch'">批量招募</button>
-      <button :class="{ active: tab === 'dispatch' }" @click="tab = 'dispatch'">批量派活</button>
     </div>
 
     <!-- 单个招募 -->
@@ -40,8 +39,8 @@
           <textarea v-model="single.twitter_cookie" rows="4" placeholder="auth_token=...; ct0=..." required />
         </div>
         <label class="checkbox">
-          <input type="checkbox" v-model="single.auto_onboard" />
-          招募后自动上岗（provision Tactile Agent）
+          <input type="checkbox" v-model="single.auto_onboard" checked disabled />
+          招募后自动上岗（绑定 Cookie 即可干活）
         </label>
         <p v-if="error" class="error">{{ error }}</p>
         <button type="submit" :disabled="loading">{{ loading ? '招募中…' : '招募员工' }}</button>
@@ -55,7 +54,7 @@
         <textarea v-model="batchText" rows="10" placeholder="运营A|auth_token=...&#10;互动B|twitter_engagement|auth_token=..." />
       </div>
       <label class="checkbox">
-        <input type="checkbox" v-model="batchAutoOnboard" />
+        <input type="checkbox" v-model="batchAutoOnboard" checked disabled />
         批量招募后自动上岗
       </label>
       <p v-if="batchResult" class="result">
@@ -63,26 +62,6 @@
       </p>
       <p v-if="error" class="error">{{ error }}</p>
       <button @click="submitBatch" :disabled="loading">{{ loading ? '批量招募中…' : '批量招募' }}</button>
-    </div>
-
-    <!-- 批量派活 -->
-    <div v-if="tab === 'dispatch'" class="card form-card wide">
-      <div class="form-row">
-        <label>任务标题</label>
-        <input v-model="dispatch.title" placeholder="如今日互动任务" />
-      </div>
-      <div class="form-row">
-        <label>任务指令</label>
-        <textarea v-model="dispatch.instruction" rows="3" placeholder="浏览时间线，点赞并回复…" />
-      </div>
-      <p class="hint-block">勾选要派活的 Twitter 员工（须已绑定 Cookie）</p>
-      <p v-if="dispatchResult" class="result">
-        已派发 {{ dispatchResult.dispatched.length }} 个，失败 {{ dispatchResult.failed.length }} 个
-      </p>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button @click="submitDispatch" :disabled="loading || !selectedIds.length">
-        {{ loading ? '派发中…' : `批量派活（${selectedIds.length} 人）` }}
-      </button>
     </div>
 
     <!-- 员工列表 -->
@@ -94,7 +73,6 @@
       <table v-if="employees.length">
         <thead>
           <tr>
-            <th v-if="tab === 'dispatch'"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
             <th>编号</th>
             <th>姓名</th>
             <th>类型</th>
@@ -107,9 +85,6 @@
         </thead>
         <tbody>
           <tr v-for="e in employees" :key="e.id">
-            <td v-if="tab === 'dispatch'">
-              <input type="checkbox" :value="e.id" v-model="selectedIds" />
-            </td>
             <td>{{ e.code }}</td>
             <td>{{ e.display_name }}</td>
             <td>{{ e.employee_type_label }}</td>
@@ -145,7 +120,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { api, STAGE_LABELS } from '../api'
 
 const tab = ref('single')
@@ -169,20 +144,8 @@ const batchText = ref('')
 const batchAutoOnboard = ref(true)
 const batchResult = ref(null)
 
-const dispatch = reactive({ title: '', instruction: '' })
-const selectedIds = ref([])
-const dispatchResult = ref(null)
-
 const cookieModal = ref(null)
 const cookieEdit = ref('')
-
-const allSelected = computed(() =>
-  employees.value.length > 0 && selectedIds.value.length === employees.value.length
-)
-
-function toggleAll(ev) {
-  selectedIds.value = ev.target.checked ? employees.value.map((e) => e.id) : []
-}
 
 async function load() {
   employees.value = await api('/employees?platform=twitter')
@@ -241,32 +204,6 @@ async function submitBatch() {
       method: 'POST',
       body: JSON.stringify({ items, auto_onboard: batchAutoOnboard.value }),
     })
-    await load()
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
-}
-
-async function submitDispatch() {
-  error.value = ''
-  dispatchResult.value = null
-  if (!dispatch.title || !dispatch.instruction) {
-    error.value = '请填写任务标题和指令'
-    return
-  }
-  loading.value = true
-  try {
-    dispatchResult.value = await api('/tasks/batch', {
-      method: 'POST',
-      body: JSON.stringify({
-        employee_ids: selectedIds.value,
-        title: dispatch.title,
-        instruction: dispatch.instruction,
-      }),
-    })
-    selectedIds.value = []
     await load()
   } catch (e) {
     error.value = e.message

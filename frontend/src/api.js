@@ -37,18 +37,16 @@ export const EMPLOYEE_TYPE_LABELS = {
 }
 
 export const STAGE_LABELS = {
-  recruiting: '招募中',
-  training: '培训中',
+  recruiting: '待上岗',
+  training: '待上岗',
   ready: '待上岗',
-  active: '在岗',
+  active: '可干活',
   suspended: '已暂停',
 }
 
 export const NAV = [
   { path: '/', label: '总览' },
-  { path: '/recruit', label: '招募中心' },
-  { path: '/train', label: '培训中心' },
-  { path: '/roster', label: '员工名册' },
-  { path: '/tasks', label: '任务中心' },
+  { path: '/recruit', label: '员工管理' },
+  { path: '/tasks', label: '批量派活' },
   { path: '/logs', label: '执行日志' },
 ]

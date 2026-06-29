@@ -88,9 +88,7 @@ async def recruit_employee(
     )
     db.add(emp)
     db.flush()
-
-    if body.auto_onboard:
-        await _onboard_employee(db, emp)
+    await _onboard_employee(db, emp)
 
     db.commit()
     db.refresh(emp)
@@ -123,8 +121,7 @@ async def batch_recruit(
             )
             db.add(emp)
             db.flush()
-            if body.auto_onboard:
-                await _onboard_employee(db, emp)
+            await _onboard_employee(db, emp)
             db.flush()
             created.append(employee_to_out(emp))
         except Exception as e:

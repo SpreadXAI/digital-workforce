@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="card login-card">
       <h1>数字员工平台</h1>
-      <p class="subtitle">招募 · 培训 · 上岗 · 执行任务</p>
+      <p class="subtitle">招募 · 派活 · 执行</p>
       <form @submit.prevent="submit">
         <div class="form-row">
           <label>邮箱</label>
