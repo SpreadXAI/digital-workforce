@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.models import EmployeeStage, TaskStatus
+
+EmployeeType = Literal["twitter_operator", "twitter_engagement"]
+PlatformType = Literal["twitter"]
 
 
 class TokenResponse(BaseModel):
@@ -31,17 +34,41 @@ class UserOut(BaseModel):
 
 class EmployeeCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=128)
-    role_title: str = "twitter_operator"
-    platform: str = "twitter"
+    employee_type: EmployeeType = "twitter_operator"
+    platform: PlatformType = "twitter"
+    twitter_handle: str = ""
+    twitter_cookie: str = Field(min_length=1, description="Raw cookie or base64-encoded cookie")
+    auto_onboard: bool = True
+
+
+class EmployeeBatchItem(BaseModel):
+    display_name: str = Field(min_length=1, max_length=128)
+    employee_type: EmployeeType = "twitter_operator"
+    twitter_handle: str = ""
+    twitter_cookie: str = Field(min_length=1)
+
+
+class EmployeeBatchCreate(BaseModel):
+    items: list[EmployeeBatchItem] = Field(min_length=1, max_length=200)
+    auto_onboard: bool = True
+
+
+class EmployeeBatchResult(BaseModel):
+    created: list["EmployeeOut"]
+    failed: list[dict[str, str]]
+
+
+class TwitterCookieUpdate(BaseModel):
+    twitter_cookie: str = Field(min_length=1)
 
 
 class EmployeeUpdate(BaseModel):
     display_name: str | None = None
-    role_title: str | None = None
-    platform: str | None = None
+    employee_type: EmployeeType | None = None
+    twitter_handle: str | None = None
     persona: str | None = None
     playbook: str | None = None
-    credentials: dict[str, str] | None = None
+    twitter_cookie: str | None = None
 
 
 class EmployeeSkillIn(BaseModel):
@@ -68,13 +95,16 @@ class EmployeeOut(BaseModel):
     code: str
     display_name: str
     role_title: str
+    employee_type_label: str = ""
     platform: str
+    twitter_handle: str = ""
     persona: str
     playbook: str
     stage: EmployeeStage
     tactile_agent_id: int | None
     tactile_last_work_id: int | None
     has_credentials: bool
+    has_twitter_cookie: bool = False
     skills: list[EmployeeSkillOut] = []
     created_at: datetime
     updated_at: datetime
@@ -96,6 +126,12 @@ class TaskCreate(BaseModel):
     instruction: str = Field(min_length=1)
 
 
+class BatchTaskCreate(BaseModel):
+    employee_ids: list[int] = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    instruction: str = Field(min_length=1)
+
+
 class TaskOut(BaseModel):
     id: int
     employee_id: int
@@ -105,6 +141,11 @@ class TaskOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class BatchTaskResult(BaseModel):
+    dispatched: list[TaskOut]
+    failed: list[dict[str, str]]
 
 
 class ExecutionOut(BaseModel):
@@ -128,6 +169,7 @@ class DashboardStats(BaseModel):
     active: int
     suspended: int
     tasks_today: int
+    twitter_active: int = 0
 
 
 class SkillCatalogItem(BaseModel):
@@ -136,3 +178,7 @@ class SkillCatalogItem(BaseModel):
     slug: str = ""
     description: str = ""
     raw: dict[str, Any] = {}
+
+
+EmployeeBatchResult.model_rebuild()
+BatchTaskResult.model_rebuild()

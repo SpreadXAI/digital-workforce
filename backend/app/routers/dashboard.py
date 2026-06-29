@@ -25,6 +25,15 @@ def stats(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     tasks_today = (
         db.query(func.count(WorkTask.id)).filter(WorkTask.created_at >= today_start).scalar() or 0
     )
+    twitter_active = (
+        db.query(func.count(DigitalEmployee.id))
+        .filter(
+            DigitalEmployee.platform == "twitter",
+            DigitalEmployee.stage == EmployeeStage.active,
+        )
+        .scalar()
+        or 0
+    )
     return DashboardStats(
         total_employees=total,
         recruiting=by_stage.get(EmployeeStage.recruiting, 0),
@@ -33,4 +42,5 @@ def stats(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
         active=by_stage.get(EmployeeStage.active, 0),
         suspended=by_stage.get(EmployeeStage.suspended, 0),
         tasks_today=tasks_today,
+        twitter_active=twitter_active,
     )

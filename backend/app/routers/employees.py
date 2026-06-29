@@ -9,9 +9,20 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.employee_utils import dump_credentials, employee_to_out, next_employee_code, parse_credentials
+from app.employee_utils import (
+    EMPLOYEE_TYPES,
+    build_twitter_credentials,
+    dump_credentials,
+    employee_to_out,
+    has_twitter_cookie,
+    infer_handle_from_cookie,
+    next_employee_code,
+    parse_credentials,
+)
 from app.models import DigitalEmployee, EmployeeSkill, EmployeeStage, TaskExecution, TaskStatus, User, WorkTask
 from app.schemas import (
+    EmployeeBatchCreate,
+    EmployeeBatchResult,
     EmployeeCreate,
     EmployeeOut,
     EmployeeSkillIn,
@@ -19,6 +30,7 @@ from app.schemas import (
     ExecutionOut,
     StageTransition,
     TrialRunRequest,
+    TwitterCookieUpdate,
 )
 from app.tactile.agent_provision import ensure_agent_on_onboard, provision_agent
 from app.tactile.dispatcher import dispatch_work
@@ -28,37 +40,98 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/employees", tags=["employees"])
 
 
+@router.get("/types")
+def employee_types(_: User = Depends(get_current_user)):
+    return {"types": [{"id": k, "label": v} for k, v in EMPLOYEE_TYPES.items()]}
+
+
 @router.get("", response_model=list[EmployeeOut])
 def list_employees(
     stage: EmployeeStage | None = Query(None),
+    platform: str | None = Query(None),
+    employee_type: str | None = Query(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = db.query(DigitalEmployee).filter(DigitalEmployee.owner_user_id == user.id)
     if stage:
         q = q.filter(DigitalEmployee.stage == stage)
+    if platform:
+        q = q.filter(DigitalEmployee.platform == platform)
+    if employee_type:
+        q = q.filter(DigitalEmployee.role_title == employee_type)
     rows = q.order_by(DigitalEmployee.id.desc()).all()
     return [employee_to_out(e) for e in rows]
 
 
 @router.post("", response_model=EmployeeOut, status_code=status.HTTP_201_CREATED)
-def recruit_employee(
+async def recruit_employee(
     body: EmployeeCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if body.employee_type not in EMPLOYEE_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported employee type")
+    if body.platform != "twitter":
+        raise HTTPException(status_code=400, detail="当前仅支持 Twitter 平台")
+
+    handle = body.twitter_handle.strip() or infer_handle_from_cookie(body.twitter_cookie)
     emp = DigitalEmployee(
         code=next_employee_code(db),
         display_name=body.display_name,
-        role_title=body.role_title,
-        platform=body.platform,
+        role_title=body.employee_type,
+        platform="twitter",
+        twitter_handle=handle,
+        credentials=dump_credentials(build_twitter_credentials(body.twitter_cookie)),
         stage=EmployeeStage.recruiting,
         owner_user_id=user.id,
     )
     db.add(emp)
+    db.flush()
+
+    if body.auto_onboard:
+        await _onboard_employee(db, emp)
+
     db.commit()
     db.refresh(emp)
     return employee_to_out(emp)
+
+
+@router.post("/batch", response_model=EmployeeBatchResult)
+async def batch_recruit(
+    body: EmployeeBatchCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    created: list[EmployeeOut] = []
+    failed: list[dict[str, str]] = []
+
+    for idx, item in enumerate(body.items):
+        try:
+            if item.employee_type not in EMPLOYEE_TYPES:
+                raise ValueError(f"不支持的员工类型: {item.employee_type}")
+            handle = item.twitter_handle.strip() or infer_handle_from_cookie(item.twitter_cookie)
+            emp = DigitalEmployee(
+                code=next_employee_code(db),
+                display_name=item.display_name,
+                role_title=item.employee_type,
+                platform="twitter",
+                twitter_handle=handle,
+                credentials=dump_credentials(build_twitter_credentials(item.twitter_cookie)),
+                stage=EmployeeStage.recruiting,
+                owner_user_id=user.id,
+            )
+            db.add(emp)
+            db.flush()
+            if body.auto_onboard:
+                await _onboard_employee(db, emp)
+            db.flush()
+            created.append(employee_to_out(emp))
+        except Exception as e:
+            failed.append({"index": str(idx), "display_name": item.display_name, "error": str(e)})
+
+    db.commit()
+    return EmployeeBatchResult(created=created, failed=failed)
 
 
 @router.get("/{employee_id}", response_model=EmployeeOut)
@@ -81,19 +154,50 @@ def update_employee(
     emp = _get_owned(db, user, employee_id)
     if body.display_name is not None:
         emp.display_name = body.display_name
-    if body.role_title is not None:
-        emp.role_title = body.role_title
-    if body.platform is not None:
-        emp.platform = body.platform
+    if body.employee_type is not None:
+        if body.employee_type not in EMPLOYEE_TYPES:
+            raise HTTPException(status_code=400, detail="Unsupported employee type")
+        emp.role_title = body.employee_type
+    if body.twitter_handle is not None:
+        emp.twitter_handle = body.twitter_handle
     if body.persona is not None:
         emp.persona = body.persona
     if body.playbook is not None:
         emp.playbook = body.playbook
-    if body.credentials is not None:
-        emp.credentials = dump_credentials(body.credentials)
+    if body.twitter_cookie is not None:
+        emp.credentials = dump_credentials(build_twitter_credentials(body.twitter_cookie))
+        if not emp.twitter_handle:
+            emp.twitter_handle = infer_handle_from_cookie(body.twitter_cookie)
     db.commit()
     db.refresh(emp)
     return employee_to_out(emp)
+
+
+@router.put("/{employee_id}/cookie", response_model=EmployeeOut)
+def update_cookie(
+    employee_id: int,
+    body: TwitterCookieUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    emp = _get_owned(db, user, employee_id)
+    emp.credentials = dump_credentials(build_twitter_credentials(body.twitter_cookie))
+    if not emp.twitter_handle:
+        emp.twitter_handle = infer_handle_from_cookie(body.twitter_cookie)
+    db.commit()
+    db.refresh(emp)
+    return employee_to_out(emp)
+
+
+@router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    emp = _get_owned(db, user, employee_id)
+    db.delete(emp)
+    db.commit()
 
 
 @router.post("/{employee_id}/stage", response_model=EmployeeOut)
@@ -110,15 +214,13 @@ async def transition_stage(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot transition {emp.stage.value} → {body.stage.value}",
         )
-    emp.stage = body.stage
 
     if body.stage == EmployeeStage.active:
-        try:
-            await ensure_agent_on_onboard(db, emp)
-            await sync_skills_to_agent(db, emp)
-        except Exception as e:
-            logger.exception("Onboard failed for employee %s", employee_id)
-            raise HTTPException(status_code=502, detail=f"Tactile onboard failed: {e}")
+        if not has_twitter_cookie(emp):
+            raise HTTPException(status_code=400, detail="上岗前须绑定 Twitter Cookie")
+        await _onboard_employee(db, emp)
+    else:
+        emp.stage = body.stage
 
     db.commit()
     db.refresh(emp)
@@ -189,11 +291,13 @@ async def trial_run(
     user: User = Depends(get_current_user),
 ):
     emp = _get_owned(db, user, employee_id)
-    if emp.stage not in (EmployeeStage.training, EmployeeStage.ready, EmployeeStage.active):
-        raise HTTPException(status_code=400, detail="Trial run only in training/ready/active")
+    if not has_twitter_cookie(emp):
+        raise HTTPException(status_code=400, detail="须先绑定 Twitter Cookie")
 
     try:
-        if not emp.tactile_agent_id:
+        if emp.stage != EmployeeStage.active:
+            await _onboard_employee(db, emp)
+        elif not emp.tactile_agent_id:
             await provision_agent(db, emp)
             await sync_skills_to_agent(db, emp)
 
@@ -202,6 +306,8 @@ async def trial_run(
             body.instruction,
             platform=emp.platform,
             credentials=parse_credentials(emp.credentials),
+            employee_id=emp.id,
+            twitter_handle=emp.twitter_handle,
         )
         work_id = int(work.get("id", 0)) or None
         emp.tactile_last_work_id = work_id
@@ -238,6 +344,18 @@ def list_executions(
     return rows
 
 
+async def _onboard_employee(db: Session, emp: DigitalEmployee) -> None:
+    if not has_twitter_cookie(emp):
+        raise ValueError("Twitter Cookie 未绑定")
+    try:
+        await ensure_agent_on_onboard(db, emp)
+        await sync_skills_to_agent(db, emp)
+        emp.stage = EmployeeStage.active
+    except Exception as e:
+        logger.exception("Onboard failed for employee %s", emp.id)
+        raise
+
+
 def _get_owned(db: Session, user: User, employee_id: int) -> DigitalEmployee:
     emp = (
         db.query(DigitalEmployee)
@@ -251,8 +369,8 @@ def _get_owned(db: Session, user: User, employee_id: int) -> DigitalEmployee:
 
 def _allowed_transitions(current: EmployeeStage) -> set[EmployeeStage]:
     graph: dict[EmployeeStage, set[EmployeeStage]] = {
-        EmployeeStage.recruiting: {EmployeeStage.training},
-        EmployeeStage.training: {EmployeeStage.ready, EmployeeStage.recruiting},
+        EmployeeStage.recruiting: {EmployeeStage.training, EmployeeStage.active},
+        EmployeeStage.training: {EmployeeStage.ready, EmployeeStage.active, EmployeeStage.recruiting},
         EmployeeStage.ready: {EmployeeStage.active, EmployeeStage.training},
         EmployeeStage.active: {EmployeeStage.suspended, EmployeeStage.training},
         EmployeeStage.suspended: {EmployeeStage.active, EmployeeStage.training},

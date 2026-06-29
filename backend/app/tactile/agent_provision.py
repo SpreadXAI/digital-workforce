@@ -53,6 +53,4 @@ async def provision_agent(db: Session, employee: DigitalEmployee) -> int:
 
 
 async def ensure_agent_on_onboard(db: Session, employee: DigitalEmployee) -> int:
-    if employee.stage not in (EmployeeStage.ready, EmployeeStage.active):
-        raise ValueError("Employee must be ready or active to provision agent")
     return await provision_agent(db, employee)

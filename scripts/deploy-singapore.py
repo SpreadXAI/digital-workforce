@@ -180,6 +180,7 @@ EOF
 export PYTHONPATH=backend
 cd backend
 python -c "from app.database import init_db; init_db()"
+python -c "from app.migrate_schema import migrate_schema; migrate_schema()"
 cd "$REMOTE_DIR"
 
 cat > /etc/systemd/system/$SERVICE.service << 'UNIT'

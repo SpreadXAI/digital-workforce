@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import SessionLocal, init_db
+from app.migrate_schema import migrate_schema
+from app.models import User  # noqa: F401 — register models
 from app.models import User  # noqa: F401 — register models
 from app.routers import auth, dashboard, employees, skills, tasks
 from app.seed_data import seed_users
@@ -18,6 +20,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    migrate_schema()
     db = SessionLocal()
     try:
         if not settings.uses_sqlite:

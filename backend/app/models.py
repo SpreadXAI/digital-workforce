@@ -41,6 +41,7 @@ class DigitalEmployee(Base):
     display_name: Mapped[str] = mapped_column(String(128))
     role_title: Mapped[str] = mapped_column(String(64), default="twitter_operator")
     platform: Mapped[str] = mapped_column(String(32), default="twitter")
+    twitter_handle: Mapped[str] = mapped_column(String(64), default="")
     persona: Mapped[str] = mapped_column(Text, default="")
     playbook: Mapped[str] = mapped_column(Text, default="")
     credentials: Mapped[str | None] = mapped_column(Text, nullable=True)

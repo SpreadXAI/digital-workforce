@@ -31,6 +31,11 @@ export async function api(path, options = {}) {
   return res.json()
 }
 
+export const EMPLOYEE_TYPE_LABELS = {
+  twitter_operator: '运营号',
+  twitter_engagement: '互动号',
+}
+
 export const STAGE_LABELS = {
   recruiting: '招募中',
   training: '培训中',
