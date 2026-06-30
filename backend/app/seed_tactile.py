@@ -28,6 +28,10 @@ def sync_tactile_settings_from_env(db: Session) -> None:
     """Production: align platform_settings with backend/.env on each startup/deploy."""
     if settings.environment != "production":
         return
+    if not settings.uses_sqlite:
+        from sqlalchemy import text
+
+        db.execute(text(f'SET search_path TO "{settings.database_schema}"'))
     save_tactile_settings(
         db,
         {
