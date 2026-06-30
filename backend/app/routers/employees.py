@@ -12,6 +12,7 @@ from app.database import get_db
 from app.employee_utils import (
     EMPLOYEE_TYPES,
     build_twitter_credentials,
+    decode_twitter_cookie_for_display,
     dump_credentials,
     employee_to_out,
     has_twitter_cookie,
@@ -30,6 +31,7 @@ from app.schemas import (
     ExecutionOut,
     StageTransition,
     TrialRunRequest,
+    TwitterCookieOut,
     TwitterCookieUpdate,
 )
 from app.team_utils import employee_in_team, get_current_team_id
@@ -178,6 +180,21 @@ def update_employee(
     db.commit()
     db.refresh(emp)
     return employee_to_out(emp)
+
+
+@router.get("/{employee_id}/cookie", response_model=TwitterCookieOut)
+def get_cookie(
+    employee_id: int,
+    team_id: int = Depends(get_current_team_id),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    emp = employee_in_team(db, employee_id, team_id)
+    creds = parse_credentials(emp.credentials)
+    stored = creds.get(TWITTER_COOKIE_KEY)
+    if not stored:
+        raise HTTPException(status_code=404, detail="未绑定 Cookie")
+    return TwitterCookieOut(twitter_cookie=decode_twitter_cookie_for_display(stored))
 
 
 @router.put("/{employee_id}/cookie", response_model=EmployeeOut)

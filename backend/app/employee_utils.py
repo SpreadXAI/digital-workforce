@@ -75,6 +75,20 @@ def has_twitter_cookie(emp: DigitalEmployee) -> bool:
     return bool(creds.get(TWITTER_COOKIE_KEY))
 
 
+def decode_twitter_cookie_for_display(stored: str) -> str:
+    """Decode stored base64 cookie back to readable text for admin view."""
+    value = stored.strip()
+    if not value:
+        return ""
+    try:
+        decoded = base64.b64decode(value, validate=True).decode("utf-8", errors="ignore")
+        if "auth_token" in decoded or "ct0" in decoded or "guest_id" in decoded:
+            return decoded
+    except (binascii.Error, ValueError):
+        pass
+    return value
+
+
 def infer_handle_from_cookie(cookie_raw: str) -> str:
     """Best-effort @handle from cookie value (raw or base64)."""
     try:

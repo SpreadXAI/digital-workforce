@@ -62,6 +62,10 @@ class TwitterCookieUpdate(BaseModel):
     twitter_cookie: str = Field(min_length=1)
 
 
+class TwitterCookieOut(BaseModel):
+    twitter_cookie: str
+
+
 class EmployeeUpdate(BaseModel):
     display_name: str | None = None
     employee_type: EmployeeType | None = None

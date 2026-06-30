@@ -49,9 +49,34 @@
             </td>
             <td><span :class="['badge', e.stage]">{{ STAGE_LABELS[e.stage] }}</span></td>
             <td>{{ e.tactile_agent_id || '—' }}</td>
-            <td class="actions">
-              <button class="secondary sm" @click="openCookie(e)">Cookie</button>
-              <button class="danger sm" @click="remove(e)">删除</button>
+            <td class="actions-cell">
+              <div class="row-menu">
+                <button
+                  type="button"
+                  class="menu-trigger"
+                  aria-label="操作"
+                  @click.stop="toggleMenu(e.id)"
+                >
+                  ⋮
+                </button>
+                <div v-if="openMenuId === e.id" class="menu-dropdown" @click.stop>
+                  <button
+                    v-if="e.has_twitter_cookie"
+                    type="button"
+                    @click="viewCookie(e)"
+                  >
+                    查看 Cookie
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    @click="bindCookie(e)"
+                  >
+                    绑定 Cookie
+                  </button>
+                  <button type="button" class="danger-text" @click="remove(e)">删除</button>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -113,11 +138,23 @@
       </div>
     </div>
 
-    <!-- Cookie 弹窗 -->
+    <!-- 查看 Cookie -->
+    <div v-if="cookieViewModal" class="modal" @click.self="cookieViewModal = null">
+      <div class="card modal-body wide">
+        <h3>查看 Cookie — {{ cookieViewModal.display_name }}</h3>
+        <textarea :value="cookieViewText" rows="8" readonly class="readonly" />
+        <div class="modal-actions">
+          <button class="secondary" @click="cookieViewModal = null">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 绑定 Cookie -->
     <div v-if="cookieModal" class="modal" @click.self="cookieModal = null">
       <div class="card modal-body">
-        <h3>更新 Cookie — {{ cookieModal.display_name }}</h3>
-        <textarea v-model="cookieEdit" rows="5" />
+        <h3>绑定 Cookie — {{ cookieModal.display_name }}</h3>
+        <textarea v-model="cookieEdit" rows="5" placeholder="auth_token=...; ct0=..." />
+        <p v-if="modalError" class="error">{{ modalError }}</p>
         <div class="modal-actions">
           <button @click="saveCookie" :disabled="loading">保存</button>
           <button class="secondary" @click="cookieModal = null">取消</button>
@@ -128,7 +165,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { api, STAGE_LABELS } from '../api'
 
 const employees = ref([])
@@ -153,8 +190,11 @@ const single = reactive({
 
 const batchText = ref('')
 const batchResult = ref(null)
+const openMenuId = ref(null)
 const cookieModal = ref(null)
 const cookieEdit = ref('')
+const cookieViewModal = ref(null)
+const cookieViewText = ref('')
 
 const filteredEmployees = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -168,7 +208,16 @@ const filteredEmployees = computed(() => {
   })
 })
 
+function closeMenu() {
+  openMenuId.value = null
+}
+
+function toggleMenu(id) {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+
 function openRecruitModal(tab) {
+  closeMenu()
   recruitTab.value = tab
   modalError.value = ''
   batchResult.value = null
@@ -250,9 +299,26 @@ async function submitBatch() {
   }
 }
 
-function openCookie(e) {
+function bindCookie(e) {
+  closeMenu()
+  modalError.value = ''
   cookieModal.value = e
   cookieEdit.value = ''
+}
+
+async function viewCookie(e) {
+  closeMenu()
+  modalError.value = ''
+  loading.value = true
+  try {
+    const data = await api(`/employees/${e.id}/cookie`)
+    cookieViewText.value = data.twitter_cookie
+    cookieViewModal.value = e
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveCookie() {
@@ -272,12 +338,19 @@ async function saveCookie() {
 }
 
 async function remove(e) {
+  closeMenu()
   if (!confirm(`删除员工 ${e.display_name}？`)) return
   await api(`/employees/${e.id}`, { method: 'DELETE' })
   await load()
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  document.addEventListener('click', closeMenu)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', closeMenu)
+})
 </script>
 
 <style scoped>
@@ -295,7 +368,48 @@ onMounted(load)
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 .dot.ok { background: var(--success); }
 .dot.miss { background: var(--danger); }
-.actions { display: flex; gap: 0.35rem; }
+.actions-cell { width: 48px; text-align: center; }
+.row-menu { position: relative; display: inline-block; }
+.menu-trigger {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+.menu-trigger:hover {
+  background: #f4f4f5;
+  color: var(--text);
+}
+.menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 128px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 20;
+  overflow: hidden;
+}
+.menu-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 0;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.menu-dropdown button:hover { background: #f4f4f5; }
+.menu-dropdown .danger-text { color: var(--danger); }
+.readonly { background: #f4f4f5; color: var(--text); }
 button.sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 .empty { color: var(--muted); padding: 2rem 0; text-align: center; }
 .count { color: var(--muted); font-size: 0.8rem; margin-top: 0.75rem; }
