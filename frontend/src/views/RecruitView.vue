@@ -19,10 +19,6 @@
       <div class="list-header">
         <div class="filters">
           <input v-model="search" placeholder="搜索姓名 / @账号" class="search" />
-          <select v-model="filterType">
-            <option value="">全部类型</option>
-            <option v-for="t in employeeTypes" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
         </div>
         <div class="list-actions">
           <button class="secondary" @click="openRecruitModal('batch')">批量招募</button>
@@ -35,7 +31,6 @@
           <tr>
             <th>编号</th>
             <th>姓名</th>
-            <th>类型</th>
             <th>账号</th>
             <th>Cookie</th>
             <th>状态</th>
@@ -47,7 +42,6 @@
           <tr v-for="e in filteredEmployees" :key="e.id">
             <td>{{ e.code }}</td>
             <td>{{ e.display_name }}</td>
-            <td>{{ e.employee_type_label }}</td>
             <td>{{ e.twitter_handle || '—' }}</td>
             <td>
               <span :class="['dot', e.has_twitter_cookie ? 'ok' : 'miss']"></span>
@@ -145,7 +139,6 @@ const employeeTypes = ref([
 const loading = ref(false)
 const modalError = ref('')
 const search = ref('')
-const filterType = ref('')
 
 const recruitModal = ref(false)
 const recruitTab = ref('single')
@@ -166,7 +159,6 @@ const cookieEdit = ref('')
 const filteredEmployees = computed(() => {
   const q = search.value.trim().toLowerCase()
   return employees.value.filter((e) => {
-    if (filterType.value && e.role_title !== filterType.value) return false
     if (!q) return true
     return (
       e.display_name.toLowerCase().includes(q) ||
