@@ -163,7 +163,7 @@ watch(() => route.params.id, load)
 .instruction-box .label,
 .tactile-card h3,
 .card h3 {
-  color: var(--text-soft);
+  color: var(--muted);
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
 }
@@ -179,7 +179,7 @@ watch(() => route.params.id, load)
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 0.85rem;
-  color: var(--text-soft);
+  color: var(--muted);
 }
 .empty, .loading { color: var(--muted); }
 .detail-grid { margin-bottom: 1rem; }

@@ -61,7 +61,7 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-soft);
+  color: var(--muted);
   font-size: 0.85rem;
 }
 .empty { color: var(--muted); padding: 2rem 0; }

@@ -42,17 +42,10 @@ onMounted(async () => {
   margin-bottom: 1.5rem;
   max-width: 820px;
 }
-.stat {
-  background: linear-gradient(180deg, var(--surface-elevated), var(--surface));
-}
-.stat.accent {
-  border-color: #efc7ad;
-  background: linear-gradient(180deg, #fff7f1, #fffaf5);
-}
 .stat .num {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
 }
 .stat .label {
   color: var(--muted);

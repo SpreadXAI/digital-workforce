@@ -147,20 +147,18 @@ onMounted(async () => {
 <style scoped>
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
-  width: 252px;
-  background: linear-gradient(180deg, #fff4e8 0%, #f8e5d2 100%);
-  border-right: 1px solid #e8c7ad;
+  width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 8px 0 24px rgba(120, 72, 40, 0.06);
 }
 .brand {
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-size: 1.1rem;
+  font-weight: 700;
   margin-bottom: 1rem;
-  color: var(--accent);
-  letter-spacing: 0.02em;
+  color: var(--text);
 }
 .team-box { margin-bottom: 1rem; }
 .team-box label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; font-weight: 600; }
@@ -168,27 +166,24 @@ onMounted(async () => {
 .invite-btn { width: 100%; }
 .pending-invites {
   margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 8px;
 }
 .invite-title { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 600; }
 .invite-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 0.35rem; }
 .nav-item {
   display: block;
-  padding: 0.7rem 0.85rem;
-  border-radius: 999px;
-  color: var(--text-soft);
-  margin-bottom: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
   text-decoration: none;
-  font-weight: 600;
 }
 .nav-item:hover, .nav-item.router-link-active {
-  background: linear-gradient(90deg, #ffe3cc, #ffd7b3);
-  color: #a84312;
+  background: var(--bg);
+  color: var(--text);
   text-decoration: none;
-  box-shadow: inset 0 0 0 1px #f0b48a;
 }
 .logout { margin-top: auto; }
 .content {
@@ -200,8 +195,7 @@ onMounted(async () => {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(61, 44, 33, 0.35);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;

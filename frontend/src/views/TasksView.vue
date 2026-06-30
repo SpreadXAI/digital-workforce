@@ -171,7 +171,7 @@ onMounted(async () => {
 .employee-pick {
   max-height: 280px;
   overflow: auto;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.5rem;
   margin-bottom: 1rem;
@@ -193,7 +193,7 @@ onMounted(async () => {
   padding: 0.7rem 0.85rem;
   background: var(--surface-elevated);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
 }
 .info-list span { color: var(--muted); font-size: 0.85rem; }
 .list-header {
