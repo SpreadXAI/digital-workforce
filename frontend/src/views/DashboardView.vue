@@ -16,11 +16,6 @@
         <div class="label">今日任务</div>
       </div>
     </div>
-    <div class="actions">
-      <router-link to="/recruit" class="btn">管理员工</router-link>
-      <router-link to="/tasks" class="btn secondary">批量派活</router-link>
-      <router-link to="/logs" class="btn secondary">执行日志</router-link>
-    </div>
   </div>
 </template>
 
@@ -51,15 +46,6 @@ onMounted(async () => {
   color: var(--muted);
   font-size: 0.85rem;
   margin-top: 0.35rem;
-}
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.actions .btn {
-  display: inline-block;
-  text-decoration: none;
 }
 @media (max-width: 720px) {
   .stats-grid { grid-template-columns: 1fr; }
