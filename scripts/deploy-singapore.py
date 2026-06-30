@@ -181,7 +181,6 @@ export PYTHONPATH=backend
 cd backend
 python -c "from app.database import init_db; init_db()"
 python -c "from app.migrate_schema import migrate_schema; migrate_schema()"
-python -c "from app.database import SessionLocal; from app.seed_tactile import sync_tactile_settings_from_env; db=SessionLocal(); sync_tactile_settings_from_env(db)"
 cd "$REMOTE_DIR"
 
 cat > /etc/systemd/system/$SERVICE.service << 'UNIT'

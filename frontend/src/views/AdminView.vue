@@ -1,7 +1,7 @@
 <template>
   <div class="admin-page">
     <h1>Cloud Agent Lab 配置</h1>
-    <p class="subtitle">生产环境 Gateway 对接（全员共用一个 Agent）</p>
+    <p class="subtitle">Cloud Agent Lab Gateway 对接（全员共用一个 Agent）。保存后写入数据库，刷新或重启服务均会保留。</p>
 
     <div class="card">
       <div class="status-row">
@@ -128,9 +128,14 @@ async function save() {
       machine_type: form.machine_type,
     }
     if (form.api_key.trim()) body.api_key = form.api_key.trim()
-    settings.value = await api('/admin/tactile', { method: 'PUT', body: JSON.stringify(body) })
+    const data = await api('/admin/tactile', { method: 'PUT', body: JSON.stringify(body) })
+    settings.value = data
+    form.api_base = data.api_base
+    form.workspace_id = data.workspace_id
+    form.agent_id = data.agent_id
+    form.machine_type = data.machine_type
     form.api_key = ''
-    success.value = '已保存'
+    success.value = '已保存，刷新后仍会保留'
   } catch (e) {
     error.value = e.message
   } finally {
