@@ -26,11 +26,30 @@
           <span class="count">已选 {{ selectedIds.length }} 人</span>
         </div>
         <div class="employee-pick">
-          <label v-for="e in employees" :key="e.id" class="pick-row">
-            <input type="checkbox" :value="e.id" v-model="selectedIds" :disabled="!e.has_twitter_cookie" />
-            <span>{{ e.display_name }}</span>
-            <span class="meta">{{ e.employee_type_label }} · {{ e.twitter_handle || e.code }}</span>
-            <span v-if="!e.has_twitter_cookie" class="warn">无 Cookie</span>
+          <div v-if="employees.length" class="pick-head">
+            <span class="pick-check" aria-hidden="true"></span>
+            <span>姓名</span>
+            <span>账号</span>
+            <span>Cookie</span>
+          </div>
+          <label
+            v-for="e in employees"
+            :key="e.id"
+            class="pick-row"
+            :class="{ disabled: !e.has_twitter_cookie }"
+          >
+            <input
+              class="pick-check"
+              type="checkbox"
+              :value="e.id"
+              v-model="selectedIds"
+              :disabled="!e.has_twitter_cookie"
+            />
+            <span class="pick-name" :title="e.display_name">{{ e.display_name }}</span>
+            <span class="pick-handle" :title="e.twitter_handle || e.code">{{ e.twitter_handle || e.code }}</span>
+            <span :class="['pick-cookie', e.has_twitter_cookie ? 'ok' : 'miss']">
+              {{ e.has_twitter_cookie ? '已绑定' : '未绑定' }}
+            </span>
           </label>
           <p v-if="!employees.length" class="empty">暂无员工，请先到「员工管理」招募</p>
         </div>
@@ -117,18 +136,70 @@ onMounted(load)
 .select-bar { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0; }
 .count { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
 .employee-pick {
-  max-height: 280px;
+  max-height: 320px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0.5rem;
   margin-bottom: 1rem;
-  background: var(--bg);
+  background: var(--surface);
 }
-.pick-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.25rem; cursor: pointer; }
-.pick-row .meta { color: var(--muted); font-size: 0.8rem; }
-.pick-row .warn { color: var(--warning); font-size: 0.75rem; margin-left: auto; }
-.empty { color: var(--muted); padding: 1rem 0; }
+.pick-head,
+.pick-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr minmax(9rem, 11rem) 4.5rem;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+}
+.pick-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: #f8f8fa;
+  border-bottom: 1px solid var(--border);
+}
+.pick-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+.pick-row:last-child { border-bottom: none; }
+.pick-row:hover:not(.disabled) { background: #f4f4f5; }
+.pick-row.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pick-check {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+.pick-name {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-handle {
+  color: var(--muted);
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-cookie {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+}
+.pick-cookie.ok { color: var(--success); }
+.pick-cookie.miss { color: var(--danger); }
+.empty { color: var(--muted); padding: 1rem 0.85rem; }
 .failed-box {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
