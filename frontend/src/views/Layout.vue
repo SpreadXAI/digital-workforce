@@ -147,41 +147,69 @@ onMounted(async () => {
 <style scoped>
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
-  width: 240px;
-  background: var(--surface);
+  width: 250px;
+  background: linear-gradient(180deg, #fffaf5 0%, #f8efe6 100%);
   border-right: 1px solid var(--border);
   padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--shadow-sm);
 }
-.brand { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+.brand {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
 .team-box { margin-bottom: 1rem; }
-.team-box label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
+.team-box label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; font-weight: 600; }
 .team-box select { width: 100%; margin-bottom: 0.5rem; }
 .invite-btn { width: 100%; }
-.pending-invites { margin-bottom: 1rem; padding: 0.5rem; background: var(--bg); border-radius: 8px; }
-.invite-title { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
+.pending-invites {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+.invite-title { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 600; }
 .invite-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 0.35rem; }
 .nav-item {
   display: block;
-  padding: 0.6rem 0.75rem;
-  border-radius: 6px;
-  color: var(--muted);
-  margin-bottom: 0.25rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 999px;
+  color: var(--text-soft);
+  margin-bottom: 0.35rem;
   text-decoration: none;
+  font-weight: 600;
 }
 .nav-item:hover, .nav-item.router-link-active {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
   text-decoration: none;
 }
 .logout { margin-top: auto; }
-.content { flex: 1; padding: 2rem; overflow: auto; }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.content {
+  flex: 1;
+  padding: 2rem;
+  overflow: auto;
+  background: transparent;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 44, 33, 0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
 .modal-body { width: 440px; max-width: 90vw; }
 .hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
 .invite-link { font-size: 0.8rem; color: var(--success); margin: 0.75rem 0; word-break: break-all; }
 .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
-button.sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+button.sm { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
 .error { color: var(--danger); font-size: 0.85rem; }
 </style>

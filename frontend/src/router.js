@@ -7,6 +7,7 @@ import RecruitView from './views/RecruitView.vue'
 import TasksView from './views/TasksView.vue'
 import LogsView from './views/LogsView.vue'
 import AdminView from './views/AdminView.vue'
+import TaskDetailView from './views/TaskDetailView.vue'
 
 const routes = [
   { path: '/login', component: LoginView, meta: { public: true } },
@@ -20,6 +21,7 @@ const routes = [
       { path: 'roster', redirect: '/recruit' },
       { path: 'employees/:id', redirect: '/recruit' },
       { path: 'tasks', component: TasksView },
+      { path: 'tasks/:id', component: TaskDetailView },
       { path: 'logs', component: LogsView },
       { path: 'admin', component: AdminView, meta: { admin: true } },
     ],

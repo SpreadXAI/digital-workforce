@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -11,21 +12,100 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.employee_utils import has_twitter_cookie, parse_credentials
 from app.models import DigitalEmployee, EmployeeStage, TaskExecution, TaskStatus, User, WorkTask
-from app.schemas import BatchTaskCreate, BatchTaskResult, ExecutionOut, TaskCreate, TaskOut
+from app.schemas import BatchTaskCreate, BatchTaskResult, DispatchInfoOut, ExecutionOut, TaskCreate, TaskDetailOut, TaskListOut, TaskOut
 from app.team_utils import employee_in_team, get_current_team_id
+from app.tactile.client import tactile
 from app.tactile.dispatcher import dispatch_work
 from app.tactile_config import load_tactile_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
+_TACTILE_STATUS_MAP: dict[str, TaskStatus] = {
+    "idle": TaskStatus.running,
+    "running": TaskStatus.running,
+    "coding": TaskStatus.running,
+    "completed": TaskStatus.completed,
+    "archived": TaskStatus.completed,
+    "failed": TaskStatus.failed,
+}
+
 
 def _team_employee_ids(db: Session, team_id: int) -> list[int]:
     return [e.id for e in db.query(DigitalEmployee.id).filter(DigitalEmployee.team_id == team_id).all()]
 
 
-@router.get("", response_model=list[TaskOut])
+def _latest_execution(db: Session, task_id: int) -> TaskExecution | None:
+    return (
+        db.query(TaskExecution)
+        .filter(TaskExecution.task_id == task_id)
+        .order_by(TaskExecution.id.desc())
+        .first()
+    )
+
+
+def _task_list_out(db: Session, task: WorkTask, config_agent_id: int | None) -> TaskListOut:
+    emp = db.get(DigitalEmployee, task.employee_id)
+    ex = _latest_execution(db, task.id)
+    return TaskListOut(
+        id=task.id,
+        employee_id=task.employee_id,
+        title=task.title,
+        instruction=task.instruction,
+        status=task.status,
+        created_at=task.created_at,
+        employee_name=emp.display_name if emp else "",
+        employee_handle=emp.twitter_handle if emp else "",
+        tactile_work_id=ex.tactile_work_id if ex else None,
+        tactile_session_id=ex.tactile_session_id if ex else None,
+        tactile_agent_id=config_agent_id,
+    )
+
+
+def _sync_task_from_tactile(task: WorkTask, tactile_work: dict[str, Any] | None) -> None:
+    if not tactile_work:
+        return
+    mapped = _TACTILE_STATUS_MAP.get(str(tactile_work.get("status", "")).lower())
+    if mapped:
+        task.status = mapped
+
+
+@router.get("", response_model=list[TaskListOut])
 def list_tasks(
+    team_id: int = Depends(get_current_team_id),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    config = load_tactile_config(db)
+    employee_ids = _team_employee_ids(db, team_id)
+    if not employee_ids:
+        return []
+    rows = (
+        db.query(WorkTask)
+        .filter(WorkTask.employee_id.in_(employee_ids))
+        .order_by(WorkTask.id.desc())
+        .limit(100)
+        .all()
+    )
+    return [_task_list_out(db, t, config.agent_id) for t in rows]
+
+
+@router.get("/dispatch-info", response_model=DispatchInfoOut)
+def dispatch_info(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    config = load_tactile_config(db)
+    return DispatchInfoOut(
+        agent_id=config.agent_id,
+        workspace_id=config.workspace_id,
+        api_base=config.api_base,
+        ready=config.ready,
+    )
+
+
+@router.get("/executions", response_model=list[ExecutionOut])
+def list_all_executions(
     team_id: int = Depends(get_current_team_id),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -34,11 +114,50 @@ def list_tasks(
     if not employee_ids:
         return []
     return (
-        db.query(WorkTask)
-        .filter(WorkTask.employee_id.in_(employee_ids))
-        .order_by(WorkTask.id.desc())
+        db.query(TaskExecution)
+        .filter(TaskExecution.employee_id.in_(employee_ids))
+        .order_by(TaskExecution.id.desc())
         .limit(100)
         .all()
+    )
+
+
+@router.get("/{task_id}", response_model=TaskDetailOut)
+async def get_task(
+    task_id: int,
+    team_id: int = Depends(get_current_team_id),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    task = db.get(WorkTask, task_id)
+    if not task or task.employee_id not in _team_employee_ids(db, team_id):
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    config = load_tactile_config(db)
+    base = _task_list_out(db, task, config.agent_id)
+    executions = (
+        db.query(TaskExecution)
+        .filter(TaskExecution.task_id == task.id)
+        .order_by(TaskExecution.id.asc())
+        .all()
+    )
+    tactile_work: dict[str, Any] | None = None
+    work_id = base.tactile_work_id
+    if work_id and config.configured:
+        try:
+            tactile_work = await tactile.get_work(config, work_id)
+            _sync_task_from_tactile(task, tactile_work)
+            db.commit()
+            db.refresh(task)
+            base.status = task.status
+        except Exception as e:
+            logger.warning("Failed to fetch tactile work %s: %s", work_id, e)
+
+    return TaskDetailOut(
+        **base.model_dump(),
+        tactile_workspace_id=config.workspace_id,
+        tactile_work=tactile_work,
+        executions=[ExecutionOut.model_validate(e) for e in executions],
     )
 
 
@@ -81,24 +200,6 @@ async def batch_create_tasks(
 
     db.commit()
     return BatchTaskResult(dispatched=dispatched, failed=failed)
-
-
-@router.get("/executions", response_model=list[ExecutionOut])
-def list_all_executions(
-    team_id: int = Depends(get_current_team_id),
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    employee_ids = _team_employee_ids(db, team_id)
-    if not employee_ids:
-        return []
-    return (
-        db.query(TaskExecution)
-        .filter(TaskExecution.employee_id.in_(employee_ids))
-        .order_by(TaskExecution.id.desc())
-        .limit(100)
-        .all()
-    )
 
 
 async def _dispatch_one(

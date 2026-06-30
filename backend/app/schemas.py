@@ -143,6 +143,27 @@ class TaskOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TaskListOut(TaskOut):
+    employee_name: str = ""
+    employee_handle: str = ""
+    tactile_work_id: int | None = None
+    tactile_session_id: str | None = None
+    tactile_agent_id: int | None = None
+
+
+class TaskDetailOut(TaskListOut):
+    tactile_workspace_id: int | None = None
+    tactile_work: dict[str, Any] | None = None
+    executions: list["ExecutionOut"] = []
+
+
+class DispatchInfoOut(BaseModel):
+    agent_id: int | None
+    workspace_id: int
+    api_base: str
+    ready: bool
+
+
 class BatchTaskResult(BaseModel):
     dispatched: list[TaskOut]
     failed: list[dict[str, str]]
@@ -209,3 +230,4 @@ class TactileHealthOut(BaseModel):
 
 EmployeeBatchResult.model_rebuild()
 BatchTaskResult.model_rebuild()
+TaskDetailOut.model_rebuild()

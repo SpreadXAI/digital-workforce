@@ -59,9 +59,17 @@ async function submit() {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
 }
-.login-card { width: 380px; }
-h1 { margin-bottom: 0.25rem; }
-.subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+.login-card {
+  width: 400px;
+  background: linear-gradient(180deg, #fffdf9, #fff7ef);
+  border: 1px solid var(--border);
+}
+h1 {
+  margin-bottom: 0.25rem;
+  color: var(--accent);
+}
+.subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.92rem; }
 button { width: 100%; margin-top: 0.5rem; }
 </style>

@@ -61,8 +61,14 @@ export const EMPLOYEE_TYPE_LABELS = {
   twitter_engagement: '互动号',
 }
 
+export const TASK_STATUS_LABELS = {
+  pending: '待执行',
+  running: '执行中',
+  completed: '已完成',
+  failed: '失败',
+}
+
 export const STAGE_LABELS = {
-  recruiting: '待上岗',
   training: '待上岗',
   ready: '待上岗',
   active: '可干活',
