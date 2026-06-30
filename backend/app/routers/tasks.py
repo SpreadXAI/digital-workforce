@@ -62,7 +62,7 @@ async def _confirm_tactile_work(
     config,
     work_id: int,
     *,
-    max_wait_s: float = 8.0,
+    max_wait_s: float = 15.0,
     interval_s: float = 1.0,
 ) -> dict[str, Any] | None:
     """Poll work status so batch dispatch can surface sandbox startup failures."""
