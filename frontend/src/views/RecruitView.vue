@@ -294,7 +294,7 @@ onMounted(load)
 .desc { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
 .platform-tags { display: flex; gap: 0.5rem; }
 .tag { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; border: 1px solid var(--border); }
-.tag.active { background: #14532d; color: #4ade80; border-color: #14532d; }
+.tag.active { background: var(--accent-soft); color: var(--accent-hover); border-color: #f0b48a; }
 .tag.disabled { color: var(--muted); opacity: 0.6; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .filters { display: flex; gap: 0.5rem; flex: 1; }
@@ -307,7 +307,7 @@ onMounted(load)
 button.sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 .empty { color: var(--muted); padding: 2rem 0; text-align: center; }
 .count { color: var(--muted); font-size: 0.8rem; margin-top: 0.75rem; }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.modal { position: fixed; inset: 0; background: rgba(74, 47, 34, 0.38); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
 .modal-body { width: 480px; max-width: 100%; max-height: 90vh; overflow: auto; }
 .modal-body.wide { width: 560px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }

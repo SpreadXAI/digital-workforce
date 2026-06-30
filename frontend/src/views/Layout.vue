@@ -147,16 +147,16 @@ onMounted(async () => {
 <style scoped>
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
-  width: 250px;
-  background: linear-gradient(180deg, #fffaf5 0%, #f8efe6 100%);
-  border-right: 1px solid var(--border);
+  width: 252px;
+  background: linear-gradient(180deg, #fff4e8 0%, #f8e5d2 100%);
+  border-right: 1px solid #e8c7ad;
   padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 8px 0 24px rgba(120, 72, 40, 0.06);
 }
 .brand {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 800;
   margin-bottom: 1rem;
   color: var(--accent);
@@ -185,9 +185,10 @@ onMounted(async () => {
   font-weight: 600;
 }
 .nav-item:hover, .nav-item.router-link-active {
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  background: linear-gradient(90deg, #ffe3cc, #ffd7b3);
+  color: #a84312;
   text-decoration: none;
+  box-shadow: inset 0 0 0 1px #f0b48a;
 }
 .logout { margin-top: auto; }
 .content {
