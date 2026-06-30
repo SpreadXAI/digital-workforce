@@ -4,24 +4,25 @@
     <p class="subtitle">Cloud Agent Lab Gateway 对接（全员共用一个 Agent）。保存后写入数据库，刷新或重启服务均会保留。</p>
 
     <div class="card">
-      <div class="status-row">
-        <span>连接状态</span>
-        <span :class="settings.configured ? 'ok' : 'warn'">
-          {{ settings.configured ? '已配置' : '未配置' }}
-        </span>
-        <span :class="settings.ready ? 'ok' : 'warn'">
-          {{ settings.ready ? '可派活' : '待填 Agent ID' }}
-        </span>
-      </div>
-
-      <div v-if="settings.console_url" class="console-links">
-        <h3>Cloud Agent Lab 快捷入口</h3>
-        <div class="link-row">
-          <a :href="settings.workbench_url" target="_blank" rel="noopener">工作台</a>
-          <a :href="settings.agent_url" target="_blank" rel="noopener">Agent #{{ settings.agent_id || '—' }} 配置</a>
-          <a :href="settings.console_url" target="_blank" rel="noopener">控制台首页</a>
+      <div class="card-top">
+        <div class="status-row">
+          <span>连接状态</span>
+          <span :class="settings.configured ? 'ok' : 'warn'">
+            {{ settings.configured ? '已配置' : '未配置' }}
+          </span>
+          <span :class="settings.ready ? 'ok' : 'warn'">
+            {{ settings.ready ? '可派活' : '待填 Agent ID' }}
+          </span>
         </div>
-        <p class="hint">排查派活问题时，可在工作台按 Work ID 打开对应会话与沙箱。</p>
+        <a
+          v-if="settings.workbench_url"
+          :href="settings.workbench_url"
+          target="_blank"
+          rel="noopener"
+          class="external-link"
+        >
+          打开 Cloud Agent Lab ↗
+        </a>
       </div>
 
       <form @submit.prevent="save">
@@ -167,7 +168,23 @@ onMounted(load)
 <style scoped>
 .admin-page h1 { margin-bottom: 0.25rem; }
 .subtitle { color: var(--muted); margin-bottom: 1.5rem; }
-.status-row { display: flex; gap: 1rem; margin-bottom: 1rem; font-size: 0.9rem; }
+.status-row { display: flex; gap: 1rem; font-size: 0.9rem; flex-wrap: wrap; }
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.external-link {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.external-link:hover { text-decoration: underline; }
 .ok { color: var(--success); }
 .warn { color: var(--danger); }
 .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
@@ -177,28 +194,11 @@ onMounted(load)
 .health { margin-top: 1rem; font-size: 0.9rem; }
 .health.ok { color: var(--success); }
 .health.error { color: var(--danger); }
-.console-links {
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-}
-.console-links h3,
 .note-card h3 {
   font-size: 0.9rem;
   color: var(--muted);
   margin-bottom: 0.5rem;
 }
-.link-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-}
-.link-row a {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-.link-row a:hover { text-decoration: underline; }
 .note-card {
   margin-top: 1rem;
   font-size: 0.9rem;
