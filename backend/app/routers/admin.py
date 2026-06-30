@@ -79,11 +79,17 @@ async def test_tactile_connection(
     if not config.configured:
         raise HTTPException(status_code=400, detail="请先配置 API Key 与工作空间 ID")
     try:
-        data = await tactile.health(config)
-        return TactileHealthOut(
-            ok=True,
-            status=str(data.get("status", "ok")),
-            service=str(data.get("service", "")),
-        )
+        await tactile.health(config)
+        detail = f"Cloud Agent Lab · {config.api_base} · Workspace #{config.workspace_id}"
+        if config.ready:
+            agent = await tactile.get_agent(config, config.agent_id)  # type: ignore[arg-type]
+            agent_name = str(agent.get("name") or "").strip()
+            agent_label = f"Agent #{config.agent_id}"
+            if agent_name:
+                agent_label = f"{agent_label}（{agent_name}）"
+            detail = f"{detail} · {agent_label}"
+        else:
+            detail = f"{detail} · 待配置 Agent ID"
+        return TactileHealthOut(ok=True, status="ok", service="Cloud Agent Lab", detail=detail)
     except Exception as e:
         return TactileHealthOut(ok=False, detail=str(e))

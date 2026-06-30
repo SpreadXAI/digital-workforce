@@ -62,7 +62,7 @@
         </div>
       </form>
 
-      <p v-if="healthMsg" class="health">{{ healthMsg }}</p>
+      <p v-if="healthMsg" :class="['health', healthOk ? 'ok' : 'error']">{{ healthMsg }}</p>
     </div>
 
     <div class="card note-card">
@@ -104,6 +104,7 @@ const testing = ref(false)
 const error = ref('')
 const success = ref('')
 const healthMsg = ref('')
+const healthOk = ref(false)
 
 async function load() {
   const data = await api('/admin/tactile')
@@ -139,13 +140,16 @@ async function save() {
 
 async function testConnection() {
   healthMsg.value = ''
+  healthOk.value = false
   testing.value = true
   try {
     const res = await api('/admin/tactile/test', { method: 'POST' })
+    healthOk.value = !!res.ok
     healthMsg.value = res.ok
-      ? `连接成功：${res.service || res.status}`
+      ? (res.detail || `连接成功：${res.service}`)
       : `连接失败：${res.detail}`
   } catch (e) {
+    healthOk.value = false
     healthMsg.value = `连接失败：${e.message}`
   } finally {
     testing.value = false
@@ -165,7 +169,9 @@ onMounted(load)
 .actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 .error { color: var(--danger); }
 .success { color: var(--success); }
-.health { margin-top: 1rem; font-size: 0.9rem; color: var(--muted); }
+.health { margin-top: 1rem; font-size: 0.9rem; }
+.health.ok { color: var(--success); }
+.health.error { color: var(--danger); }
 .console-links {
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
