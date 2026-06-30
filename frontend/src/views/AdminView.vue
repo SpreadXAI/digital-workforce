@@ -1,7 +1,7 @@
 <template>
   <div class="admin-page">
     <h1>管理台</h1>
-    <p class="subtitle">Tactile Gateway 对接配置（全员共用一个 Agent）</p>
+    <p class="subtitle">Tactile Gateway / Cloud Agent Lab 对接配置（全员共用一个 Agent）</p>
 
     <div class="card">
       <div class="status-row">
@@ -12,6 +12,16 @@
         <span :class="settings.ready ? 'ok' : 'warn'">
           {{ settings.ready ? '可派活' : '待填 Agent ID' }}
         </span>
+      </div>
+
+      <div v-if="settings.console_url" class="console-links">
+        <h3>Cloud Agent Lab 快捷入口</h3>
+        <div class="link-row">
+          <a :href="settings.workbench_url" target="_blank" rel="noopener">工作台</a>
+          <a :href="settings.agent_url" target="_blank" rel="noopener">Agent #{{ settings.agent_id || '—' }} 配置</a>
+          <a :href="settings.console_url" target="_blank" rel="noopener">控制台首页</a>
+        </div>
+        <p class="hint">排查派活问题时，可在工作台按 Work ID 打开对应会话与沙箱。</p>
       </div>
 
       <form @submit.prevent="save">
@@ -54,6 +64,12 @@
 
       <p v-if="healthMsg" class="health">{{ healthMsg }}</p>
     </div>
+
+    <div class="card note-card">
+      <h3>账号说明</h3>
+      <p><strong>admin@spreadx.ai</strong> 为管理员，可访问本页并配置 Tactile。</p>
+      <p><strong>qa@spreadx.ai</strong> 为普通测试账号，<em>不是</em>管理员，无法进入管理台。</p>
+    </div>
   </div>
 </template>
 
@@ -70,6 +86,9 @@ const settings = ref({
   machine_type: 'ubuntu',
   configured: false,
   ready: false,
+  console_url: '',
+  workbench_url: '',
+  agent_url: '',
 })
 
 const form = reactive({
@@ -147,4 +166,33 @@ onMounted(load)
 .error { color: var(--danger); }
 .success { color: var(--success); }
 .health { margin-top: 1rem; font-size: 0.9rem; color: var(--muted); }
+.console-links {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.console-links h3,
+.note-card h3 {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+.link-row a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.link-row a:hover { text-decoration: underline; }
+.note-card {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.note-card p { margin: 0.35rem 0; }
 </style>

@@ -151,9 +151,25 @@ class TaskListOut(TaskOut):
     tactile_agent_id: int | None = None
 
 
+class TactileChatMessageOut(BaseModel):
+    entry_index: int | None = None
+    message_type: str = ""
+    content: str = ""
+    created_at: str | None = None
+
+
+class TactileLinksOut(BaseModel):
+    console_url: str
+    workbench_url: str
+    work_url: str | None = None
+    agent_url: str | None = None
+
+
 class TaskDetailOut(TaskListOut):
     tactile_workspace_id: int | None = None
     tactile_work: dict[str, Any] | None = None
+    tactile_chat: list[TactileChatMessageOut] = []
+    tactile_links: TactileLinksOut | None = None
     executions: list["ExecutionOut"] = []
 
 
@@ -211,6 +227,9 @@ class TactileSettingsOut(BaseModel):
     machine_type: str
     configured: bool
     ready: bool
+    console_url: str = ""
+    workbench_url: str = ""
+    agent_url: str = ""
 
 
 class TactileSettingsUpdate(BaseModel):

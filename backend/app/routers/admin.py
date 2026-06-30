@@ -10,12 +10,20 @@ from app.database import get_db
 from app.models import User
 from app.schemas import TactileHealthOut, TactileSettingsOut, TactileSettingsUpdate
 from app.tactile.client import tactile
-from app.tactile_config import load_tactile_config, mask_api_key, save_tactile_settings
+from app.tactile_config import (
+    agent_settings_url,
+    load_tactile_config,
+    mask_api_key,
+    save_tactile_settings,
+    workbench_url,
+    console_root_url,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _to_out(config) -> TactileSettingsOut:
+    root = console_root_url(config.api_base)
     return TactileSettingsOut(
         api_base=config.api_base,
         api_key_masked=mask_api_key(config.api_key),
@@ -25,6 +33,9 @@ def _to_out(config) -> TactileSettingsOut:
         machine_type=config.machine_type,
         configured=config.configured,
         ready=config.ready,
+        console_url=root,
+        workbench_url=workbench_url(config.api_base),
+        agent_url=agent_settings_url(config.api_base, config.agent_id),
     )
 
 

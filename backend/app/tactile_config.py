@@ -99,6 +99,24 @@ def mask_api_key(api_key: str) -> str:
     return f"{api_key[:4]}...{api_key[-4:]}"
 
 
+def console_root_url(api_base: str) -> str:
+    return api_base.rstrip("/").removesuffix("/api")
+
+
+def workbench_url(api_base: str, work_id: int | None = None) -> str:
+    root = console_root_url(api_base)
+    if work_id:
+        return f"{root}/workbench?workId={work_id}"
+    return f"{root}/workbench"
+
+
+def agent_settings_url(api_base: str, agent_id: int | None) -> str:
+    root = console_root_url(api_base)
+    if agent_id:
+        return f"{root}/workbench?tab=agents&agentId={agent_id}"
+    return f"{root}/workbench?tab=agents"
+
+
 def require_agent_id(config: TactileRuntimeConfig) -> int:
     if not config.configured:
         raise RuntimeError("Tactile 未配置：请在管理台填写 API Key 与工作空间 ID")

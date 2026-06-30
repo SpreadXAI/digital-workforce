@@ -12,11 +12,22 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.employee_utils import has_twitter_cookie, parse_credentials
 from app.models import DigitalEmployee, EmployeeStage, TaskExecution, TaskStatus, User, WorkTask
-from app.schemas import BatchTaskCreate, BatchTaskResult, DispatchInfoOut, ExecutionOut, TaskCreate, TaskDetailOut, TaskListOut, TaskOut
+from app.schemas import (
+    BatchTaskCreate,
+    BatchTaskResult,
+    DispatchInfoOut,
+    ExecutionOut,
+    TactileChatMessageOut,
+    TactileLinksOut,
+    TaskCreate,
+    TaskDetailOut,
+    TaskListOut,
+    TaskOut,
+)
 from app.team_utils import employee_in_team, get_current_team_id
 from app.tactile.client import tactile
 from app.tactile.dispatcher import dispatch_work
-from app.tactile_config import load_tactile_config
+from app.tactile_config import agent_settings_url, load_tactile_config, workbench_url, console_root_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -68,6 +79,57 @@ def _sync_task_from_tactile(task: WorkTask, tactile_work: dict[str, Any] | None)
     mapped = _TACTILE_STATUS_MAP.get(str(tactile_work.get("status", "")).lower())
     if mapped:
         task.status = mapped
+
+
+def _parse_chat_messages(history: dict[str, Any] | None) -> list[TactileChatMessageOut]:
+    if not history:
+        return []
+    items = history.get("messages") or []
+    out: list[TactileChatMessageOut] = []
+    for msg in items:
+        mtype = str(msg.get("message_type", ""))
+        content = str(msg.get("content") or "").strip()
+        created_at = msg.get("add_time")
+        entry_index = msg.get("entry_index")
+        if mtype == "USER_MESSAGE":
+            out.append(
+                TactileChatMessageOut(
+                    entry_index=entry_index,
+                    message_type="user",
+                    content=content,
+                    created_at=created_at,
+                )
+            )
+            continue
+        if mtype != "UPDATE" or not content:
+            continue
+        raw = str(msg.get("raw_data") or "")
+        if "agent_message_chunk" not in raw and "agent_thought_chunk" in raw:
+            continue
+        out.append(
+            TactileChatMessageOut(
+                entry_index=entry_index,
+                message_type="agent",
+                content=content,
+                created_at=created_at,
+            )
+        )
+    return out
+
+
+def _sync_executions_from_tactile(
+    executions: list[TaskExecution],
+    tactile_work: dict[str, Any] | None,
+) -> None:
+    if not tactile_work or not executions:
+        return
+    mapped = _TACTILE_STATUS_MAP.get(str(tactile_work.get("status", "")).lower())
+    work_id = tactile_work.get("id")
+    for ex in executions:
+        if mapped:
+            ex.status = mapped
+        if ex.step == "dispatch" and work_id:
+            ex.message = f"已派活至 Tactile Work #{work_id}"
 
 
 @router.get("", response_model=list[TaskListOut])
@@ -142,21 +204,46 @@ async def get_task(
         .all()
     )
     tactile_work: dict[str, Any] | None = None
+    tactile_chat: list[TactileChatMessageOut] = []
     work_id = base.tactile_work_id
-    if work_id and config.configured:
-        try:
-            tactile_work = await tactile.get_work(config, work_id)
-            _sync_task_from_tactile(task, tactile_work)
+    session_id = base.tactile_session_id
+    if config.configured:
+        if work_id:
+            try:
+                tactile_work = await tactile.get_work(config, work_id)
+                _sync_task_from_tactile(task, tactile_work)
+                if tactile_work and not session_id:
+                    session_id = tactile_work.get("session_id")
+            except Exception as e:
+                logger.warning("Failed to fetch tactile work %s: %s", work_id, e)
+        if session_id:
+            try:
+                history = await tactile.get_chat_history(config, str(session_id))
+                tactile_chat = _parse_chat_messages(history)
+            except Exception as e:
+                logger.warning("Failed to fetch tactile chat %s: %s", session_id, e)
+        if tactile_work:
+            _sync_executions_from_tactile(executions, tactile_work)
             db.commit()
             db.refresh(task)
             base.status = task.status
-        except Exception as e:
-            logger.warning("Failed to fetch tactile work %s: %s", work_id, e)
+
+    links = None
+    if config.api_base:
+        root = console_root_url(config.api_base)
+        links = TactileLinksOut(
+            console_url=root,
+            workbench_url=workbench_url(config.api_base, work_id),
+            work_url=workbench_url(config.api_base, work_id) if work_id else None,
+            agent_url=agent_settings_url(config.api_base, config.agent_id),
+        )
 
     return TaskDetailOut(
         **base.model_dump(),
         tactile_workspace_id=config.workspace_id,
         tactile_work=tactile_work,
+        tactile_chat=tactile_chat,
+        tactile_links=links,
         executions=[ExecutionOut.model_validate(e) for e in executions],
     )
 

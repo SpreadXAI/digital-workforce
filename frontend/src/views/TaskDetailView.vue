@@ -24,6 +24,22 @@
         </div>
       </div>
 
+      <div v-if="task.tactile_links" class="card links-card">
+        <h3>Cloud Agent Lab</h3>
+        <div class="link-row">
+          <a :href="task.tactile_links.work_url || task.tactile_links.workbench_url" target="_blank" rel="noopener">
+            打开 Work 工作台
+          </a>
+          <a v-if="task.tactile_links.agent_url" :href="task.tactile_links.agent_url" target="_blank" rel="noopener">
+            Agent 配置
+          </a>
+          <a :href="task.tactile_links.console_url" target="_blank" rel="noopener">
+            控制台首页
+          </a>
+        </div>
+        <p class="hint">在 Tactile 控制台可查看沙箱、对话与执行细节，便于排查派活问题。</p>
+      </div>
+
       <div class="detail-grid">
         <div class="detail-item">
           <div class="label">执行员工</div>
@@ -73,6 +89,23 @@
         </div>
       </div>
 
+      <div v-if="task.tactile_chat?.length" class="card chat-card">
+        <h3>Agent 对话（来自 Tactile）</h3>
+        <div class="chat-list">
+          <div
+            v-for="(msg, idx) in task.tactile_chat"
+            :key="`${msg.entry_index}-${idx}`"
+            :class="['chat-bubble', msg.message_type]"
+          >
+            <div class="chat-meta">
+              <span class="chat-role">{{ msg.message_type === 'user' ? '用户指令' : 'Agent' }}</span>
+              <span v-if="msg.created_at" class="chat-time">{{ formatTime(msg.created_at) }}</span>
+            </div>
+            <pre>{{ msg.content }}</pre>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <h3>执行记录</h3>
         <table v-if="task.executions?.length">
@@ -96,6 +129,9 @@
           </tbody>
         </table>
         <p v-else class="empty">暂无执行记录</p>
+        <p v-if="!task.tactile_chat?.length && task.tactile_session_id" class="hint">
+          Agent 尚未产生对话，或对话同步失败。可点击「刷新状态」或前往 Cloud Agent Lab 查看。
+        </p>
       </div>
     </template>
   </div>
@@ -162,18 +198,67 @@ watch(() => route.params.id, load)
 }
 .instruction-box .label,
 .tactile-card h3,
+.chat-card h3,
+.links-card h3,
 .card h3 {
   color: var(--muted);
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
 }
-.instruction-box pre {
+.instruction-box pre,
+.chat-bubble pre {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: inherit;
   line-height: 1.6;
+  margin: 0;
 }
-.tactile-card { margin: 1rem 0; }
+.tactile-card,
+.links-card,
+.chat-card { margin: 1rem 0; }
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.link-row a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.link-row a:hover { text-decoration: underline; }
+.hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.chat-bubble {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+}
+.chat-bubble.user {
+  border-left: 3px solid var(--accent);
+}
+.chat-bubble.agent {
+  border-left: 3px solid var(--success);
+}
+.chat-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.chat-role { font-weight: 600; }
 .msg {
   max-width: 420px;
   white-space: pre-wrap;

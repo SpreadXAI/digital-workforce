@@ -111,6 +111,20 @@ class TactileClient:
         )
         return data if isinstance(data, list) else data.get("items", data.get("skills", []))
 
+    async def get_chat_history(
+        self,
+        config: TactileRuntimeConfig,
+        session_id: str,
+        *,
+        rounds: int = 20,
+    ) -> dict:
+        return await self._request(
+            config,
+            "GET",
+            f"/api/chat/{session_id}/history",
+            params={"rounds": rounds},
+        )
+
     async def update_agent_bindings(
         self,
         config: TactileRuntimeConfig,
