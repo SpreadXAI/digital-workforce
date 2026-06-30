@@ -37,7 +37,7 @@
             控制台首页
           </a>
         </div>
-        <p class="hint">在 Tactile 控制台可查看沙箱、对话与执行细节，便于排查派活问题。</p>
+        <p class="hint">在 Cloud Agent Lab 控制台可查看沙箱、对话与执行细节，便于排查派活问题。</p>
       </div>
 
       <div class="detail-grid">
@@ -46,7 +46,7 @@
           <div class="value">{{ task.employee_name }} · {{ task.employee_handle || task.employee_id }}</div>
         </div>
         <div class="detail-item">
-          <div class="label">Tactile Agent</div>
+          <div class="label">Agent</div>
           <div class="value">#{{ task.tactile_agent_id || '—' }}（全员共用）</div>
         </div>
         <div class="detail-item">
@@ -68,7 +68,7 @@
       </div>
 
       <div v-if="task.tactile_work" class="card tactile-card">
-        <h3>Tactile 实时状态</h3>
+        <h3>Cloud Agent Lab 实时状态</h3>
         <div class="detail-grid">
           <div class="detail-item">
             <div class="label">任务状态</div>
@@ -90,7 +90,7 @@
       </div>
 
       <div v-if="task.tactile_chat?.length" class="card chat-card">
-        <h3>Agent 对话（来自 Tactile）</h3>
+        <h3>Agent 对话</h3>
         <div class="chat-list">
           <div
             v-for="(msg, idx) in task.tactile_chat"

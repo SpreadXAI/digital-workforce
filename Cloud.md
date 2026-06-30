@@ -45,13 +45,17 @@ export ALIYUN_ACCESS_KEY_SECRET=...
 python deploy-singapore.py
 ```
 
-## Tactile 对接
+## Cloud Agent Lab 对接（生产）
 
 | 项 | 值 |
 |----|-----|
-| **测试 API** | `https://test.foxrouter.com/api` |
-| **Agent** | 全员共用一个，在 **管理台** `/admin` 配置 `Agent ID` |
+| **API** | `https://foxrouter.com/api` |
+| **控制台** | `https://foxrouter.com/workbench` |
+| **Workspace ID** | `6` |
+| **Agent ID** | `5`（全员共用，在 **管理台** `/admin` 配置） |
 | **配置 API** | `GET/PUT /api/admin/tactile`（仅 admin） |
+
+测试环境见仓库 `CLAUDE.md`（`test.foxrouter.com`）。
 
 ## 用户流程
 

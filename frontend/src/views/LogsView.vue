@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 class="page-title">执行日志</h2>
-    <p class="page-desc">查看每次派活的执行记录，点击可进入任务详情（含 Tactile Work 状态）。</p>
+    <p class="page-desc">查看每次派活的执行记录，点击可进入任务详情（含 Cloud Agent Lab Work 状态）。</p>
 
     <div class="card">
       <table v-if="logs.length">

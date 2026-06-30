@@ -33,11 +33,11 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
 
     tactile_api_base: str = Field(
-        default="https://test.foxrouter.com/api", validation_alias="TACTILE_API_BASE"
+        default="https://foxrouter.com/api", validation_alias="TACTILE_API_BASE"
     )
     tactile_api_key: str = Field(default="", validation_alias="TACTILE_API_KEY")
-    tactile_workspace_id: int = Field(default=0, validation_alias="TACTILE_WORKSPACE_ID")
-    tactile_template_agent_id: int = Field(default=0, validation_alias="TACTILE_AGENT_ID")
+    tactile_workspace_id: int = Field(default=6, validation_alias="TACTILE_WORKSPACE_ID")
+    tactile_template_agent_id: int = Field(default=5, validation_alias="TACTILE_AGENT_ID")
     tactile_default_model: str = Field(default="gpt-4o", validation_alias="TACTILE_DEFAULT_MODEL")
     tactile_default_runtime_type: str = Field(default="ecs-ubuntu", validation_alias="TACTILE_DEFAULT_RUNTIME_TYPE")
     tactile_skill_creator_agent_id: int = Field(default=0, validation_alias="TACTILE_SKILL_CREATOR_AGENT_ID")

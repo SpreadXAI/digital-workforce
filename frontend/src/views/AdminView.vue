@@ -1,7 +1,7 @@
 <template>
   <div class="admin-page">
-    <h1>管理台</h1>
-    <p class="subtitle">Tactile Gateway / Cloud Agent Lab 对接配置（全员共用一个 Agent）</p>
+    <h1>Cloud Agent Lab 配置</h1>
+    <p class="subtitle">生产环境 Gateway 对接（全员共用一个 Agent）</p>
 
     <div class="card">
       <div class="status-row">
@@ -27,7 +27,7 @@
       <form @submit.prevent="save">
         <div class="form-row">
           <label>API Base URL</label>
-          <input v-model="form.api_base" type="url" placeholder="https://test.foxrouter.com/api" />
+          <input v-model="form.api_base" type="url" placeholder="https://foxrouter.com/api" />
         </div>
         <div class="form-row">
           <label>API Key</label>
@@ -67,7 +67,7 @@
 
     <div class="card note-card">
       <h3>账号说明</h3>
-      <p><strong>admin@spreadx.ai</strong> 为管理员，可访问本页并配置 Tactile。</p>
+      <p><strong>admin@spreadx.ai</strong> 为管理员，可访问本页并配置 Cloud Agent Lab。</p>
       <p><strong>qa@spreadx.ai</strong> 为普通测试账号，<em>不是</em>管理员，无法进入管理台。</p>
     </div>
   </div>

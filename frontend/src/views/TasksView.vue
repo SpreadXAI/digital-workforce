@@ -4,7 +4,7 @@
       <div>
         <h2 class="page-title">批量派活</h2>
         <p class="page-desc">
-          选择员工后，任务将派发到 Tactile 共用 Agent 执行；每位员工携带自己的 Twitter Cookie 环境变量。
+          选择员工后，任务将派发到 Cloud Agent Lab 共用 Agent 执行；每位员工携带自己的 Twitter Cookie 环境变量。
         </p>
       </div>
     </div>
@@ -53,14 +53,14 @@
         <h3>派发给谁？</h3>
         <p class="info-text">
           你勾选的是<strong>数字员工</strong>（各自 Twitter 账号/Cookie）。
-          实际执行统一走管理台配置的 <strong>Tactile Agent</strong>，在 Tactile 侧创建 Work 任务。
+          实际执行统一走管理台配置的 <strong>Cloud Agent Lab Agent</strong>，在平台侧创建 Work 任务。
         </p>
         <div class="info-list">
           <div><span>员工</span><strong>你选中的账号</strong></div>
           <div><span>Agent</span><strong>全员共用 #{{ dispatchInfo.agent_id || '未配置' }}</strong></div>
           <div><span>Workspace</span><strong>#{{ dispatchInfo.workspace_id || '—' }}</strong></div>
         </div>
-        <router-link to="/admin" class="link-btn">去管理台查看配置 →</router-link>
+        <router-link to="/admin" class="link-btn">去 Cloud Agent Lab 配置 →</router-link>
       </div>
     </div>
 

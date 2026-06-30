@@ -89,7 +89,7 @@ export const NAV_GROUPS = [
   {
     title: '管理',
     adminOnly: true,
-    items: [{ path: '/admin', label: 'Tactile 配置', icon: 'settings' }],
+    items: [{ path: '/admin', label: 'Cloud Agent Lab 配置', icon: 'settings' }],
   },
 ]
 

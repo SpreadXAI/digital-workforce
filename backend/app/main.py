@@ -12,7 +12,7 @@ from app.migrate_schema import migrate_schema
 from app import models  # noqa: F401 — register all ORM tables
 from app.routers import admin, auth, dashboard, employees, skills, tasks, teams
 from app.seed_data import seed_users
-from app.seed_tactile import seed_tactile_settings
+from app.seed_tactile import seed_tactile_settings, sync_tactile_settings_from_env
 from app.tactile.client import tactile
 
 settings = get_settings()
@@ -28,6 +28,7 @@ async def lifespan(_: FastAPI):
             db.execute(__import__("sqlalchemy").text(f'SET search_path TO "{settings.database_schema}"'))
         seed_users(db)
         seed_tactile_settings(db)
+        sync_tactile_settings_from_env(db)
         migrate_team_data(db)
     finally:
         db.close()
