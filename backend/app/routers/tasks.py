@@ -58,20 +58,31 @@ def _tactile_work_error(work: dict[str, Any] | None) -> str | None:
     return None
 
 
-async def _confirm_tactile_work(config, work_id: int, *, attempts: int = 3, delay_s: float = 1.0) -> dict[str, Any] | None:
-    """Poll work status briefly so batch dispatch can surface immediate sandbox failures."""
+async def _confirm_tactile_work(
+    config,
+    work_id: int,
+    *,
+    max_wait_s: float = 8.0,
+    interval_s: float = 1.0,
+) -> dict[str, Any] | None:
+    """Poll work status so batch dispatch can surface sandbox startup failures."""
+    elapsed = 0.0
     last: dict[str, Any] | None = None
-    for _ in range(attempts):
-        await asyncio.sleep(delay_s)
+    while elapsed < max_wait_s:
+        await asyncio.sleep(interval_s)
+        elapsed += interval_s
         try:
             last = await tactile.get_work(config, work_id)
         except Exception as e:
             logger.warning("Failed to poll tactile work %s: %s", work_id, e)
             continue
-        status = str(last.get("status", "")).lower()
-        if status in ("failed", "completed", "archived", "idle", "running", "coding"):
+        if _tactile_work_error(last):
             return last
-        if str(last.get("sandbox_status", "")).lower() in ("failed", "ready"):
+        status = str(last.get("status", "")).lower()
+        sandbox = str(last.get("sandbox_status", "")).lower()
+        if sandbox == "ready":
+            return last
+        if status in ("completed", "archived", "idle", "running", "coding"):
             return last
     return last
 
