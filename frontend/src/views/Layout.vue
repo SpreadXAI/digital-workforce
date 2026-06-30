@@ -23,7 +23,7 @@
           </header>
 
           <nav class="app-shell__nav" aria-label="主功能">
-            <template v-for="group in visibleNavGroups" :key="group.title">
+            <template v-for="group in NAV_GROUPS" :key="group.title">
               <div class="app-shell__nav-title">{{ group.title }}</div>
               <router-link
                 v-for="item in group.items"
@@ -36,19 +36,6 @@
                 <span class="app-shell__nav-label">{{ item.label }}</span>
               </router-link>
             </template>
-
-            <div v-if="pendingInvites.length" class="app-shell__invites">
-              <div class="app-shell__nav-title">邀请</div>
-              <div v-for="inv in pendingInvites" :key="inv.id" class="app-shell__invite-row">
-                <span>团队 #{{ inv.team_id }}</span>
-                <button type="button" class="app-shell__invite-btn" @click="acceptInvite(inv.token)">加入</button>
-              </div>
-            </div>
-
-            <button type="button" class="app-shell__nav-item app-shell__nav-item--link invite-link" @click="showInvite = true">
-              <span class="app-shell__nav-icon" v-html="iconSvg('invite')" />
-              <span class="app-shell__nav-label">邀请成员</span>
-            </button>
           </nav>
 
           <footer class="app-shell__foot">
@@ -69,33 +56,13 @@
         </div>
       </main>
     </div>
-
-    <div v-if="showInvite" class="modal" @click.self="showInvite = false">
-      <div class="card modal-body">
-        <h3>邀请成员加入团队</h3>
-        <p class="hint">对方需已注册账号，邮箱需完全一致。</p>
-        <div class="form-row">
-          <label>成员邮箱</label>
-          <input v-model="inviteEmail" type="email" placeholder="user@example.com" />
-        </div>
-        <p v-if="inviteLink" class="invite-link">
-          邀请链接（可复制发给对方）：<br />
-          <code>{{ inviteLink }}</code>
-        </p>
-        <p v-if="inviteError" class="error">{{ inviteError }}</p>
-        <div class="modal-actions">
-          <button @click="sendInvite" :disabled="inviteLoading">发送邀请</button>
-          <button class="secondary" @click="showInvite = false">关闭</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NAV_GROUPS, api, clearToken, getTeamId, loadCurrentUser, loadTeams, setTeamId } from '../api'
+import { NAV_GROUPS, loadCurrentUser, loadTeams, setTeamId, getTeamId, clearToken } from '../api'
 
 const ICONS = {
   dashboard:
@@ -115,15 +82,8 @@ const ICONS = {
 const router = useRouter()
 const route = useRoute()
 const teams = ref([])
-const pendingInvites = ref([])
 const currentTeamId = ref(getTeamId())
 const teamKey = computed(() => `${currentTeamId.value}-${route.path}`)
-const showInvite = ref(false)
-const inviteEmail = ref('')
-const inviteLink = ref('')
-const inviteError = ref('')
-const inviteLoading = ref(false)
-const isAdmin = ref(false)
 const currentUser = ref(null)
 
 const currentTeamName = computed(() => {
@@ -133,10 +93,6 @@ const currentTeamName = computed(() => {
 
 const userName = computed(() => currentUser.value?.display_name || currentUser.value?.email || '用户')
 const userInitial = computed(() => (userName.value[0] || 'U').toUpperCase())
-
-const visibleNavGroups = computed(() =>
-  NAV_GROUPS.filter((g) => !g.adminOnly || isAdmin.value)
-)
 
 function iconSvg(name) {
   return ICONS[name] || ICONS.dashboard
@@ -150,43 +106,11 @@ function isActive(path) {
 async function refreshTeams() {
   teams.value = await loadTeams()
   currentTeamId.value = getTeamId()
-  try {
-    pendingInvites.value = await api('/teams/invites/mine')
-  } catch {
-    pendingInvites.value = []
-  }
 }
 
 function switchTeam(ev) {
   setTeamId(Number(ev.target.value))
   currentTeamId.value = getTeamId()
-}
-
-async function sendInvite() {
-  inviteError.value = ''
-  inviteLink.value = ''
-  inviteLoading.value = true
-  try {
-    const inv = await api('/teams/invites', {
-      method: 'POST',
-      body: JSON.stringify({ email: inviteEmail.value }),
-    })
-    inviteLink.value = `${window.location.origin}/login?invite=${inv.token}`
-    inviteEmail.value = ''
-  } catch (e) {
-    inviteError.value = e.message
-  } finally {
-    inviteLoading.value = false
-  }
-}
-
-async function acceptInvite(token) {
-  const team = await api('/teams/invites/accept', {
-    method: 'POST',
-    body: JSON.stringify({ token }),
-  })
-  setTeamId(team.id)
-  await refreshTeams()
 }
 
 function logout() {
@@ -197,21 +121,10 @@ function logout() {
 onMounted(async () => {
   try {
     currentUser.value = await loadCurrentUser()
-    isAdmin.value = !!currentUser.value?.is_admin
   } catch {
-    isAdmin.value = false
+    currentUser.value = null
   }
   await refreshTeams()
-  const token = route.query.invite
-  if (token && typeof token === 'string') {
-    try {
-      await acceptInvite(token)
-      router.replace({ path: route.path })
-    } catch (e) {
-      inviteError.value = e.message
-      showInvite.value = true
-    }
-  }
 })
 </script>
 
@@ -405,32 +318,6 @@ onMounted(async () => {
   flex: 1;
 }
 
-.app-shell__invites {
-  margin-top: 4px;
-}
-
-.app-shell__invite-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: #71717a;
-}
-
-.app-shell__invite-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #4f46e5;
-  border: none;
-  cursor: pointer;
-}
-
-.invite-link { margin-top: 4px; }
-
 .app-shell__foot {
   flex-shrink: 0;
   padding: 6px 10px 12px 14px;
@@ -504,20 +391,4 @@ onMounted(async () => {
   background: #fafafa;
   padding: 24px 28px 32px;
 }
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(24, 24, 27, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal-body { width: 440px; max-width: 90vw; }
-.hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
-.invite-link { font-size: 0.8rem; color: var(--success); margin: 0.75rem 0; word-break: break-all; }
-.modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
-.error { color: var(--danger); font-size: 0.85rem; }
 </style>

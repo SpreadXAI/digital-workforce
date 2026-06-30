@@ -1,12 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, api } from './api'
+import { getToken } from './api'
 import Layout from './views/Layout.vue'
 import LoginView from './views/LoginView.vue'
 import DashboardView from './views/DashboardView.vue'
 import RecruitView from './views/RecruitView.vue'
 import TasksView from './views/TasksView.vue'
 import LogsView from './views/LogsView.vue'
-import AdminView from './views/AdminView.vue'
+import SettingsView from './views/SettingsView.vue'
 import TaskDetailView from './views/TaskDetailView.vue'
 
 const routes = [
@@ -23,7 +23,8 @@ const routes = [
       { path: 'tasks', component: TasksView },
       { path: 'tasks/:id', component: TaskDetailView },
       { path: 'logs', component: LogsView },
-      { path: 'admin', component: AdminView, meta: { admin: true } },
+      { path: 'settings', component: SettingsView },
+      { path: 'admin', redirect: '/settings#cloud-agent-lab' },
     ],
   },
 ]
@@ -36,14 +37,6 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.public && !getToken()) return '/login'
   if (to.path === '/login' && getToken()) return '/'
-  if (to.meta.admin && getToken()) {
-    try {
-      const user = await api('/auth/me')
-      if (!user.is_admin) return '/'
-    } catch {
-      return '/login'
-    }
-  }
 })
 
 export default router

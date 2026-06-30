@@ -103,15 +103,13 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    title: '管理',
-    adminOnly: true,
-    items: [{ path: '/admin', label: 'Cloud Agent Lab 配置', icon: 'settings' }],
+    title: '设置',
+    items: [{ path: '/settings', label: '设置', icon: 'settings' }],
   },
 ]
 
 /** @deprecated use NAV_GROUPS */
 export const NAV = NAV_GROUPS[0].items.map(({ path, label }) => ({ path, label }))
-export const ADMIN_NAV = NAV_GROUPS[1].items[0]
 
 export async function loadCurrentUser() {
   return api('/auth/me')
