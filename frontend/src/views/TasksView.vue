@@ -164,7 +164,7 @@ onMounted(async () => {
 }
 .form-card h3, .info-card h3, .list-card h3 {
   margin-bottom: 1rem;
-  color: var(--text-soft);
+  color: var(--muted);
 }
 .select-bar { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0; }
 .count { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
@@ -175,7 +175,7 @@ onMounted(async () => {
   border-radius: var(--radius-sm);
   padding: 0.5rem;
   margin-bottom: 1rem;
-  background: var(--surface-elevated);
+  background: var(--bg);
 }
 .pick-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.25rem; cursor: pointer; }
 .pick-row .meta { color: var(--muted); font-size: 0.8rem; }
@@ -191,7 +191,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.7rem 0.85rem;
-  background: var(--surface-elevated);
+  background: var(--bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }

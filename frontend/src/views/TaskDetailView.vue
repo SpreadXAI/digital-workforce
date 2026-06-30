@@ -155,8 +155,8 @@ watch(() => route.params.id, load)
   margin-bottom: 0.35rem;
 }
 .instruction-box {
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 1rem;
 }
