@@ -34,13 +34,21 @@
           </label>
           <p v-if="!employees.length" class="empty">暂无员工，请先到「员工管理」招募</p>
         </div>
-        <p v-if="result" class="success">
-          已派发 {{ result.dispatched.length }}，失败 {{ result.failed.length }}
+        <p v-if="result && !result.failed.length" class="success">
+          已派发 {{ result.dispatched.length }} 人
           <span v-if="result.dispatched.length">
             ·
             <router-link :to="`/tasks/${result.dispatched[0].id}`">查看最新任务</router-link>
           </span>
         </p>
+        <div v-if="result?.failed?.length" class="failed-box">
+          <p class="error">派活失败 {{ result.failed.length }} 人</p>
+          <ul>
+            <li v-for="item in result.failed" :key="item.employee_id">
+              {{ item.display_name || `员工 #${item.employee_id}` }}：{{ item.error }}
+            </li>
+          </ul>
+        </div>
         <p v-if="error" class="error">{{ error }}</p>
         <button type="submit" :disabled="loading || !selectedIds.length">
           {{ loading ? '派发中…' : `派发给 ${selectedIds.length} 名员工` }}
@@ -82,7 +90,10 @@ async function submit() {
         instruction: form.instruction,
       }),
     })
-    selectedIds.value = []
+    if (!result.value.dispatched.length && result.value.failed.length) {
+      error.value = result.value.failed.map((f) => f.error).join('；')
+    }
+    if (result.value.dispatched.length) selectedIds.value = []
     await load()
   } catch (e) {
     error.value = e.message
@@ -118,4 +129,18 @@ onMounted(load)
 .pick-row .meta { color: var(--muted); font-size: 0.8rem; }
 .pick-row .warn { color: var(--warning); font-size: 0.75rem; margin-left: auto; }
 .empty { color: var(--muted); padding: 1rem 0; }
+.failed-box {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: var(--radius-sm);
+  background: rgba(220, 38, 38, 0.05);
+}
+.failed-box ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--danger);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
 </style>

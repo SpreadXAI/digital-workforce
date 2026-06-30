@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -36,10 +38,42 @@ _TACTILE_STATUS_MAP: dict[str, TaskStatus] = {
     "idle": TaskStatus.running,
     "running": TaskStatus.running,
     "coding": TaskStatus.running,
+    "scheduled": TaskStatus.running,
     "completed": TaskStatus.completed,
     "archived": TaskStatus.completed,
     "failed": TaskStatus.failed,
 }
+
+
+def _tactile_work_error(work: dict[str, Any] | None) -> str | None:
+    if not work:
+        return None
+    if str(work.get("status", "")).lower() == "failed":
+        return str(work.get("error_message") or "Cloud Agent Lab Work 执行失败")
+    err = work.get("error_message")
+    if err:
+        return str(err)
+    if str(work.get("sandbox_status", "")).lower() == "failed":
+        return str(work.get("error_message") or "沙箱启动失败")
+    return None
+
+
+async def _confirm_tactile_work(config, work_id: int, *, attempts: int = 3, delay_s: float = 1.0) -> dict[str, Any] | None:
+    """Poll work status briefly so batch dispatch can surface immediate sandbox failures."""
+    last: dict[str, Any] | None = None
+    for _ in range(attempts):
+        await asyncio.sleep(delay_s)
+        try:
+            last = await tactile.get_work(config, work_id)
+        except Exception as e:
+            logger.warning("Failed to poll tactile work %s: %s", work_id, e)
+            continue
+        status = str(last.get("status", "")).lower()
+        if status in ("failed", "completed", "archived", "idle", "running", "coding"):
+            return last
+        if str(last.get("sandbox_status", "")).lower() in ("failed", "ready"):
+            return last
+    return last
 
 
 def _team_employee_ids(db: Session, team_id: int) -> list[int]:
@@ -335,6 +369,27 @@ async def _dispatch_one(
         )
         work_id = int(work.get("id", 0)) or None
         session_id = work.get("session_id")
+        if work_id:
+            refreshed = await _confirm_tactile_work(config, work_id)
+            if refreshed:
+                work = refreshed
+                session_id = refreshed.get("session_id") or session_id
+        work_err = _tactile_work_error(work)
+        if work_err:
+            task.status = TaskStatus.failed
+            db.add(
+                TaskExecution(
+                    employee_id=emp.id,
+                    task_id=task.id,
+                    step="dispatch",
+                    message=work_err,
+                    status=TaskStatus.failed,
+                    tactile_work_id=work_id,
+                    tactile_session_id=str(session_id) if session_id else None,
+                )
+            )
+            db.flush()
+            return None, work_err
         task.status = TaskStatus.running
         emp.tactile_last_work_id = work_id
         emp.stage = EmployeeStage.active
