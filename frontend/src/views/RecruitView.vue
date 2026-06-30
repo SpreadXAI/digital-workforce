@@ -294,7 +294,7 @@ onMounted(load)
 .desc { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
 .platform-tags { display: flex; gap: 0.5rem; }
 .tag { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; border: 1px solid var(--border); }
-.tag.active { background: #14532d; color: #4ade80; border-color: #14532d; }
+.tag.active { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
 .tag.disabled { color: var(--muted); opacity: 0.6; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .filters { display: flex; gap: 0.5rem; flex: 1; }

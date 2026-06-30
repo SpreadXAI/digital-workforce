@@ -69,20 +69,33 @@ export const TASK_STATUS_LABELS = {
 }
 
 export const STAGE_LABELS = {
+  recruiting: '待上岗',
   training: '待上岗',
   ready: '待上岗',
   active: '可干活',
   suspended: '已暂停',
 }
 
-export const NAV = [
-  { path: '/', label: '总览' },
-  { path: '/recruit', label: '员工管理' },
-  { path: '/tasks', label: '批量派活' },
-  { path: '/logs', label: '执行日志' },
+export const NAV_GROUPS = [
+  {
+    title: '工作台',
+    items: [
+      { path: '/', label: '总览', icon: 'dashboard' },
+      { path: '/recruit', label: '员工管理', icon: 'users' },
+      { path: '/tasks', label: '批量派活', icon: 'tasks' },
+      { path: '/logs', label: '执行日志', icon: 'logs' },
+    ],
+  },
+  {
+    title: '管理',
+    adminOnly: true,
+    items: [{ path: '/admin', label: 'Tactile 配置', icon: 'settings' }],
+  },
 ]
 
-export const ADMIN_NAV = { path: '/admin', label: '管理台' }
+/** @deprecated use NAV_GROUPS */
+export const NAV = NAV_GROUPS[0].items.map(({ path, label }) => ({ path, label }))
+export const ADMIN_NAV = NAV_GROUPS[1].items[0]
 
 export async function loadCurrentUser() {
   return api('/auth/me')

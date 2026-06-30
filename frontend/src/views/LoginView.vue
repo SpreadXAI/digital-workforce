@@ -54,15 +54,8 @@ async function submit() {
 </script>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
 .login-card { width: 380px; }
-h1 { margin-bottom: 0.25rem; }
+h1 { margin-bottom: 0.25rem; color: #18181b; }
 .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
 button { width: 100%; margin-top: 0.5rem; }
 </style>
